@@ -4,7 +4,7 @@ csl: template.csl
 css: mystyle.css
 output: html_document
 vignette: |
-  %\VignetteEngine{knitr::rmarkdown} %\VignetteIndexEntry{Overlay metabolic and signaling KEGG pathways} \usepackage[utf8]{inputenc}
+  %\VignetteEngine{knitr::rmarkdown} %\VignetteIndexEntry{MetaboSignal} \usepackage[utf8]{inputenc}
 ---
 
 
