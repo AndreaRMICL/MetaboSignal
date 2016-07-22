@@ -81,19 +81,19 @@ R and Bioconductor. Bioinformatics, 25, 1470-1471.
 http://www.kegg.jp/kegg/docs/keggapi.html
 }
 \examples{\donttest{
-# MetaboSignal_table with organism-specific gene nodes
+# MetaboSignal network-table with organism-specific gene nodes
 
 MetaboSignal_tableIsoforms <- MetaboSignal_matrix(metabo_paths = c("rno00010", "rno00562"),
                                                   signaling_paths = c("rno04910",
                                                                     "rno04151"),
                                                   expand_genes = TRUE)
 
-# MetaboSignal_table with orthology gene nodes
+# MetaboSignal network-table with orthology gene nodes
 
 MetaboSignal_table <- MetaboSignal_matrix(metabo_paths = c("rno00010", "rno00562"),
                                           signaling_paths = c("rno04910", "rno04151"))
 
-# MetaboSignal_table with orthology gene nodes filtered by liver
+# MetaboSignal network-table orthology gene nodes filtered by liver
 
 MetaboSignal_tableLiver <- MetaboSignal_matrix(metabo_paths = "hsa00010",
                                                signaling_paths = "hsa04151",
