@@ -1,5 +1,3 @@
-#################### EXTERNAL FUNCTION ####################
-
 #################### MetaboSignal_distances ###############
 
 MetaboSignal_distances = function(network_table, organism_code,
@@ -15,15 +13,12 @@ MetaboSignal_distances = function(network_table, organism_code,
     ## Define all nodes of the network
     all_nodes = unique(as.vector(network_table))
 
-    ## Define gene nodes of the network
-    genes = c()
-    for (node in all_nodes) {
-        if (grepl("rn", node) == "TRUE" | grepl("K", node) == "TRUE" |
-            grepl(organism_code, node) == "TRUE") {
-            genes = c(genes, node)
-        }
-    }
-    if (length(genes) == 0) {
+    ## Define gene and metabolite nodes of the network
+    response_nodes = sapply(all_nodes, find_gene_metabo, organism_code = organism_code)
+    genes_index = which(response_nodes == "gene")
+    metabolites_index = which(response_nodes == "metabolite")
+
+    if (length(genes_index) == 0) {
         # This could because the network_table has specific organism
         #IDs (e.g. 'rno:') that are not consistent with the
         #organism_code(e.g.'mmu')
@@ -31,17 +26,14 @@ MetaboSignal_distances = function(network_table, organism_code,
                        "the network_table does not have gene nodes or that the",
                        "organism_code is incorrect")
         stop(to_print)
+    } else {
+      genes = all_nodes [genes_index]
     }
 
-    ## Define metabolite nodes of the network
-    metabolites = c()
-    for (node in all_nodes) {
-        if (grepl("cpd", node) == "TRUE") {
-            metabolites = c(metabolites, node)
-        }
-    }
-    if (length(metabolites) == 0) {
+    if (length(metabolites_index) == 0) {
         stop("The input network does not have metabolite nodes")
+    } else {
+      metabolites = all_nodes [metabolites_index]
     }
 
     ## Build distance_matrix: from all nodes to all nodes.
@@ -54,16 +46,12 @@ MetaboSignal_distances = function(network_table, organism_code,
     }
 
     ## Build distanceGM_matrix: from genes to metabolites##
-    metabolite_index = c()
-    for (metabolite in metabolites) {
-        index = which(colnames(distance_matrix) == metabolite)
-        metabolite_index = c(metabolite_index, index)
-    }
-    gene_index = c()
-    for (gene in genes) {
-        index = which(rownames(distance_matrix) == gene)
-        gene_index = c(gene_index, index)
-    }
+    metabolite_index = sapply (metabolites, find_node_index, target = colnames(distance_matrix))
+    metabolite_index = as.numeric (unlist(metabolite_index))
+
+    gene_index = sapply (genes, find_node_index, target = rownames(distance_matrix))
+    gene_index = as.numeric (unlist(gene_index))
+
     distanceGM_matrix = distance_matrix[c(gene_index), c(metabolite_index)]
     distanceGM_matrix = matrix(distanceGM_matrix,
                                ncol = length(metabolite_index),
@@ -95,7 +83,7 @@ MetaboSignal_distances = function(network_table, organism_code,
 
             if (length(index_substrates) >= 1) {# the metabolite is a substrate
                 indexS = c()
-                for (s in 1:length(all_reactions)) {
+                for (s in seq_along(all_reactions)) {
                   indexS = c(indexS, which(all_nodes == all_reactions[s]))
                 }
                 submatrix = DG[, c(indexS)]
@@ -154,30 +142,18 @@ MetaboSignal_distances = function(network_table, organism_code,
     }
     if (answer_metabolites == TRUE) {
         target_metabolites = all_metabolites
-    } else {
-        target_metabolites_backup = target_metabolites
     }
+        target_metabolites_backup = target_metabolites
 
+    # Map genes and metabolites
     if(grepl("Error",source_genes)[1] == TRUE){
       stop (" None of the genes is reported in KEGG. Could be that the organism_name is incorrect")
     }
+    index_genes = sapply (source_genes, find_node_index, target = all_genes)
+    index_genes = as.numeric (unlist(index_genes))
+    index_metabolites = sapply (target_metabolites, find_node_index, target = all_metabolites)
+    index_metabolites = as.numeric (unlist(index_metabolites))
 
-    index_genes = c()
-    for (g in 1:length(source_genes)) {
-        if (source_genes[g] %in% all_genes == TRUE) {
-            index = which(all_genes == source_genes[g])
-            index_genes = c(index_genes, index)
-        }
-    }
-    index_metabolites = c()
-    for (m in 1:length(target_metabolites)) {
-        target_metabolites_backup = target_metabolites
-
-        if (target_metabolites[m] %in% all_metabolites == TRUE) {
-            index = which(all_metabolites == target_metabolites[m])
-            index_metabolites = c(index_metabolites, index)
-        }
-    }
     if (length(index_metabolites) >= 1 & length(index_genes) >= 1) {
         if (answer_genes == FALSE) {
           message ("Building distance matrix", "\n")

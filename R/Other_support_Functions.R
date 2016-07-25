@@ -1,28 +1,3 @@
-#################### INTERNAL FUNCTIONS ####################
-
-#################### From_geneID_to_symbol ################
-From_geneID_to_symbol = function(ID) {
-    file = file = paste("http://rest.kegg.jp/get/", ID, sep = "")
-    find = try(readLines(file), silent = TRUE)
-    if (grepl("Error", find[1]) == FALSE) {
-        find = find[2]
-        all_names = substr(find, 13, nchar(find))
-        name = unlist(strsplit(all_names, "[,]"))
-        name = unlist(strsplit(name, "[;]"))
-        if (grepl("E", name[1]) == TRUE) { # Avoids taking weird names
-            name = sort(name, decreasing = FALSE)
-        }
-        name = name[1]# Selects only the first gene name
-        name = toupper(name)
-        name = gsub(" ", "", name)
-    } else {
-        name = ID
-    }
-    return(name)
-}
-
-#################### EXTERNAL FUNCTIONS ####################
-
 #################### MS_ChangeNames ########################
 
 MS_ChangeNames = function(nodes, organism_code) {
@@ -35,7 +10,7 @@ MS_ChangeNames = function(nodes, organism_code) {
         compoundM = convertTable(response)
     }
 
-    for (i in 1:length(nodes)) {
+    for (i in seq_along(nodes)) {
         node = nodes[i]  # Backup for last else of the loop
         if (grepl("cpd:", node) == TRUE) {
             index = which(compoundM[, 1] == nodes[i])
@@ -116,7 +91,7 @@ MS_GetShortestpaths = function(network_table, source_node, target_node,
         }
 
         all_paths = c()
-        for (i in 1:length(ASP)) {
+        for (i in seq_along(ASP)) {
             shortpath = rownames(as.matrix(unlist(ASP[[i]])))
             all_paths = rbind(all_paths, shortpath)
             all_paths = unique(all_paths)
@@ -168,7 +143,7 @@ MS_GetShortestpaths = function(network_table, source_node, target_node,
                     BW = c()
                     path_individual = as.character(all_paths[i, ])
 
-                    for (z in 1:length(path_individual)) {
+                    for (z in seq_along(path_individual)) {
                       index = which(BW_matrix[, 1] == path_individual[z])
                       if (length(index) > 0) { # Selects gene-bw only
                         BW = c(BW, as.numeric(BW_matrix[index, 2]))
@@ -274,6 +249,7 @@ MS_FilterNetwork = function(network_table, mode = "all", type, target_node = NUL
       warning ("Filtering was ignored: check filtering parameters")
     }
     colnames(network_table2) = c("node1", "node2")
+    
     ## Report features
     network_features(network_table2)
 
@@ -329,8 +305,8 @@ MS_ToCytoscape = function(network_table, organism_code, names = TRUE,
 
         if (Match(rows, a_2) == TRUE) {
             network_tableCytoscape[i, 2] = "reversible"
-            index = as.numeric(which(network_tableCytoscape[,
-                1] == a_2[1] & network_tableCytoscape[, 2] == a_2[2]
+            index = as.numeric(which(network_tableCytoscape[, 1] == a_2[1] 
+                & network_tableCytoscape[, 2] == a_2[2]
                 & network_tableCytoscape[, 3] == a_2[3], arr.ind = FALSE))
             index_to_remove = c(index_to_remove, index)
         } else (network_tableCytoscape[i, 2] = "irreversible")
@@ -350,7 +326,7 @@ MS_ToCytoscape = function(network_table, organism_code, names = TRUE,
     if (names == TRUE) {
         all_nodes_network = unique(as.vector(network_table_interactions))
         all_nodes_names = MS_ChangeNames(all_nodes_network, organism_code)
-        for (i in 1:length(all_nodes_names)) {
+        for (i in seq_along(all_nodes_names)) {
             network_table_interactions[network_table_interactions ==
                 all_nodes_network[i]] = all_nodes_names[i]
         }
@@ -363,29 +339,11 @@ MS_ToCytoscape = function(network_table, organism_code, names = TRUE,
 
     ## Create network attributes
     nodes = unique(as.vector(network_table))
-
-    node_type_all = c()
-    for (i in 1:length(nodes)) {
-        if (grepl("cpd:", nodes[i]) == TRUE) {
-            node_type = "metabolite"
-        } else if (grepl(organism_code, nodes[i]) == TRUE | grepl("K", nodes[i]) == TRUE) {
-            file = paste("http://rest.kegg.jp/get/", nodes[i], sep = "")
-            lines = try(readLines(file), silent = TRUE)
-            if (grepl("Error", lines[1]) == FALSE) {
-                enzyme_lines = grep("EC:", lines[1:5])
-                metabo_lines = grep("Metabolism", lines)
-                if (length(enzyme_lines) >= 1 & length(metabo_lines) > 0) {
-                  node_type = "metabolic_gene"
-                } else (node_type = "signaling_gene")
-            } else (node_type = "other")
-        } else {
-            node_type = "other"
-        }
-        node_type_all = c(node_type_all, node_type)
-    }
+    node_type_all = as.character(sapply (nodes, get_molecule_type,
+                                         organism_code = organism_code))
 
     if (names == TRUE) {
-        for (i in 1:length(all_nodes_names)) {
+        for (i in seq_along(all_nodes_names)) {
             nodes[nodes == all_nodes_network[i]] = all_nodes_names[i]
         }
     }
@@ -399,19 +357,11 @@ MS_ToCytoscape = function(network_table, organism_code, names = TRUE,
     ## Create node attribute to HL genes of interest
     if (length(target_nodes) > 0) {
         nodes = unique(as.vector(network_table))
-
-        node_HL_all = c()
-        for (node in nodes) {
-            if (node %in% target_nodes == TRUE) {
-                type = "target"
-            } else {
-                type = "non-target"
-            }
-            node_HL_all = c(node_HL_all, type)
-        }
+        node_HL_all = as.character(sapply (nodes, get_target_type,
+                                           target_nodes = target_nodes))
 
         if (names == TRUE) {
-            for (i in 1:length(all_nodes_names)) {
+            for (i in seq_along(all_nodes_names)) {
                 nodes[nodes == all_nodes_network[i]] = all_nodes_names[i]
             }
         }

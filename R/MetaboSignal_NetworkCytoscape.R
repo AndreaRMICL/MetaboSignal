@@ -1,54 +1,3 @@
-#################### INTERNAL FUNCTIONS ####################
-
-##################### path_as_network ######################
-path_as_network = function(path) {
-    all_edges = c()
-    for (i in 1:(length(path) - 1)) {
-        edge = c(path[i], path[i + 1])
-        all_edges = rbind(all_edges, edge)
-    }
-    return(all_edges)
-}
-
-##################### orthology_clustering ######################
-# This function clusters organism-specific KEGG gene IDs into orthology IDs
-orthology_clustering=function(network_table, organism_code, all_genes) {
-
-    to_print = ("Clustering gene IDs into orthology IDs")
-    message(to_print,"\n" )
-    index_genes = grep(organism_code, all_genes)
-    gene_nodes = unique(all_genes[index_genes])
-
-    file_ko = paste("http://rest.kegg.jp/link/ko/", organism_code, sep = "")
-    response_ko = getURL(file_ko)
-    koTable = convertTable(response_ko)
-    koTable[, 2] = substr(koTable[, 2], 4, 9)
-
-    ko_M = c()
-    for (gene in gene_nodes) {
-        index_gene = which(koTable[, 1] == gene)
-        if (length(index_gene) > 0) {
-            ko_line = c(gene, koTable[index_gene[1], 2])
-            ko_M = rbind(ko_M, ko_line)
-        }
-        rownames(ko_M) = NULL
-        ko_M = unique(ko_M)
-    }
-    for (i in 1:nrow(network_table)) {
-        for (z in 1:ncol(network_table)) {
-            index = which(ko_M[, 1] == network_table[i, z])
-            if (length(index) > 0) {
-                network_table[i, z] = ko_M[index, 2]
-            }
-        }
-    }
-    network_table=unique(network_table)
-    return(network_table)
-}
-
-
-#################### EXTERNAL FUNCTION ####################
-
 ############### MetaboSignal_NetworkCytoscape #############
 
 MetaboSignal_NetworkCytoscape = function(network_table, organism_code,
@@ -128,37 +77,23 @@ MetaboSignal_NetworkCytoscape = function(network_table, organism_code,
     ## Check if the source_genes and target_metabolites can be mapped onto the
     # network#
     all_nodes = unique(as.vector(network_table))
-    index_unwanted = c()
+    all_metabolites = all_nodes[grep("cpd:", all_nodes)]
 
-    for (i in 1:length(source_genes)) {
-        answer = source_genes[i] %in% all_nodes
-        if (answer == FALSE) {
-            index_unwanted = c(index_unwanted, i)
-        }
-    }
-    if (length(index_unwanted) >= 1) {
-        source_genes = source_genes[-c(index_unwanted)]
+    mapped_genes = intersect (source_genes, all_nodes)
+    mapped_metabolites = intersect (target_metabolites, all_metabolites)
 
-        if (length(source_genes) == 0) {
-            stop_source_genes = paste ("None of the source_genes is present in",
-              "the network. Could be that the organism_code is incorrect")
-            stop(stop_source_genes)
-        }
+    if (length (mapped_genes) > 0){
+      source_genes = mapped_genes
+    } else {
+      stop_source_genes = paste ("None of the source_genes is present in",
+                                 "the network. Could be that the organism_code is incorrect")
+      stop(stop_source_genes)
     }
-    index_unwanted = c()
-    for (i in 1:length(target_metabolites)) {
-        answer = target_metabolites[i] %in% all_nodes
-        if (answer == FALSE | grepl("cpd:",target_metabolites[i]) == FALSE) {
-            index_unwanted = c(index_unwanted, i)
-        }
-    }
-    if (length(index_unwanted) >= 1) {
-        metabolites_not_found = target_metabolites[index_unwanted]
-        target_metabolites = target_metabolites[-c(index_unwanted)]
 
-        if (length(target_metabolites) == 0) {
-            stop("None of the target_metabolites is present in the network")
-        }
+    if (length (mapped_metabolites) > 0){
+      target_metabolites = mapped_metabolites
+    } else {
+      stop("None of the target_metabolites is present in the network")
     }
 
     ## Calculate shortest path network
@@ -179,7 +114,6 @@ MetaboSignal_NetworkCytoscape = function(network_table, organism_code,
             distanceGM = distance_table[index_gene, index_metabolite]
 
             if (distanceGM < distance_th) {# If distance is not Inf,
-                empty_matrix = c()
 
                 if (type == "first") {
                   if (mode == "all") {
@@ -203,7 +137,7 @@ MetaboSignal_NetworkCytoscape = function(network_table, organism_code,
                 }
 
                 all_paths = c()
-                for (i in 1:length(ASP)) {
+                for (i in seq_along(ASP)) {
                   shortpath = rownames(as.matrix(unlist(ASP[[i]])))
                   all_paths = rbind(all_paths, shortpath)
                   all_paths = unique(all_paths)
@@ -245,7 +179,7 @@ MetaboSignal_NetworkCytoscape = function(network_table, organism_code,
                     BW = c()
                     path_individual = as.character(all_paths[i,])
 
-                    for (z in 1:length(path_individual)) {
+                    for (z in seq_along(path_individual)) {
                       index = which(BW_matrix[, 1] == path_individual[z])
                       if (length(index) > 0) {
                         BW = c(BW, as.numeric(BW_matrix[index, 2]))
@@ -321,7 +255,7 @@ MetaboSignal_NetworkCytoscape = function(network_table, organism_code,
             all_nodes_network = unique(as.vector(all_pathsGM))
             all_nodes_names = MS_ChangeNames(all_nodes_network, organism_code)
 
-            for (i in 1:length(all_nodes_names)) {
+            for (i in seq_along(all_nodes_names)) {
                 all_pathsGM_names[all_pathsGM_names == all_nodes_network[i]] =
                     all_nodes_names[i]
             }

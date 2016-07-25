@@ -41,7 +41,7 @@ Finally, the original network or the sub-networks are exported to be visualized 
 
 ## 3-Example
 
-In order to illustrate the functionality of our package, we have used transcriptomic and metabolic datasets from white adipose tissue of rat congenic strains derived from the diabetic Goto-Kakizaki (GK) and normoglycemic Brown-Norway (BN) rats. Despite of the strong genetic similarities between the congenic strains, each strain exhibits distinctive metabolic and gene expression patterns.
+In order to illustrate the functionality of our package, we have used transcriptomic and metabonomic datasets from white adipose tissue of rat congenic strains derived from the diabetic Goto-Kakizaki (GK) and normoglycemic Brown-Norway (BN) rats. Despite of the strong genetic similarities between the congenic strains, each strain exhibits distinctive metabolic and gene expression patterns.
 
 We next describe how MetaboSignal was used to provide a mechanistic explanation of the gene-metabolite associations found in this study. As an example, we will use the associations between the genes: *G6pc3* (303565), *Ship2* (65038) or *Ppp2r5b* (309179) and D-glucose.
 <br><br>
@@ -141,7 +141,7 @@ subnetwork <- MetaboSignal_NetworkCytoscape(MetaboSignal_table, organism_code="r
 This function exported three files in the working directory: “MSCytoscapeNetwork.txt”,
 “MSCytoscapeAttributesType.txt”, and “MSCytoscapeAttributesTarget”. These files were imported into cytoscape using the options: “Network from Table Text/ MS Excel” and “Attribute from Table Text/MS Excel”. The attribute files were used to customize the network (e.g. the nodes were coloured based on the molecular entity they represent), producing a final graph that looks as follows:
 
-![](./figures/network.png)
+![](./figures/network.jpg)
 
 
 
