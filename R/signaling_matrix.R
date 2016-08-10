@@ -211,6 +211,7 @@ signaling_matrix = function(global_network_all, tissue, organism_code,
                 } else {
                   m_value = ensembl[round(0.5 * length(ensembl))]
                   f_value = ensembl[length(ensembl)]
+                  message("Filtering genes by tissue:")
                   response_filter = sapply(ensembl, filter_genes_tissue,
                     tissue, m_value = m_value, f_value = f_value)
                   index_unwanted = as.numeric(which("gene_unwanted" ==

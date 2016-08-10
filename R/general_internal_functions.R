@@ -175,9 +175,13 @@ check_unmapped = function(metabolites_backup, metabolites, genes_backup,
     }
 }
 
-#################### find_unwanted_edges ####################
-find_unwanted_edge = function(edge, organism_code) {
-    pattern = paste(organism_code, "K|cpd|rn", sep = "|")
+#################### find_unwanted_edge ####################
+find_unwanted_edge = function(edge, organism_code, expand_genes) {
+	if (expand_genes == TRUE) {
+		 pattern = paste(organism_code, "cpd|rn", sep = "|")
+	} else {
+		pattern = "K|cpd|rn"
+	}
     if (grepl(pattern, edge[1]) == FALSE | grepl(pattern, edge[2]) ==
         FALSE | edge[1] == edge[2]) {
         return("unwanted")

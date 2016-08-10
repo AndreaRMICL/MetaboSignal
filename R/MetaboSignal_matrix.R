@@ -219,7 +219,8 @@ MetaboSignal_matrix = function(metabo_paths = NULL, signaling_paths = NULL,
         ## organism_code, or both nodes of the same egde are duplicated,it's removed.
 
         edges_response = sapply(split(MetaboSignal_table, row(MetaboSignal_table)),
-                                find_unwanted_edge, organism_code = organism_code)
+                                find_unwanted_edge, organism_code = organism_code, 
+                                expand_genes = expand_genes)
         edges_unwanted_global = grep("unwanted", edges_response)
 
         if (length(edges_unwanted_global) >= 1) {
