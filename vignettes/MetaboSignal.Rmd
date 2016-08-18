@@ -48,9 +48,9 @@ We next describe how MetaboSignal was used to provide a mechanistic explanation 
 
 #### Define input data
 
-We built a rat-specific MetaboSignal network by merging two metabolic pathways: “glycolysis”  and "inositol phosphate metabolism", with two signaling pathways: “insulin signaling pathway” and “PI3K-Akt signaling pathway”.
+We built a rat-specific MetaboSignal network by merging two metabolic pathways: "glycolysis"  and "inositol phosphate metabolism", with two signaling pathways: "insulin signaling pathway" and "PI3K-Akt signaling pathway".
 
-We used the function “MS_FindKEGG( )” to find the “organism_code” of the rat and the IDs of the pathways of interest.
+We used the function "MS_FindKEGG( )" to find the "organism_code" of the rat and the IDs of the pathways of interest.
 
 ```{r include = FALSE}
 library(MetaboSignal)
@@ -100,14 +100,14 @@ In total, 24 signaling genes were excluded of the network for not being expresse
 
 #### Customize MetaboSignal network-table
 
-Given that we were not interest in discriminating between different isomers of D-glucose, we used the function “MS_ReplaceNodes( )” to group the IDs of alpha-D-glucose ("cpd:C00267"), beta-D-glucose ("cpd:C00221") and D-glucose ("cpd:C00031").
+Given that we were not interest in discriminating between different isomers of D-glucose, we used the function "MS_ReplaceNodes( )" to group the IDs of alpha-D-glucose ("cpd:C00267"), beta-D-glucose ("cpd:C00221") and D-glucose ("cpd:C00031").
 
 ```{r tidy = TRUE}
 MetaboSignal_table <- MS_ReplaceNode(node1 = c("cpd:C00267", "cpd:C00221"), 
                                      node2 = "cpd:C00031", MetaboSignal_table)
 ```
 
-We used the function “MS_FindMappedNodes( )” to check that the glucose isomers had been successfully clustered.
+We used the function "MS_FindMappedNodes( )" to check that the glucose isomers had been successfully clustered.
 
 ```{r tidy = TRUE, message = FALSE}
 MS_FindMappedNodes(nodes = c("cpd:C00267", "cpd:C00221", "cpd:C00031"),
@@ -117,7 +117,7 @@ MS_FindMappedNodes(nodes = c("cpd:C00267", "cpd:C00221", "cpd:C00031"),
 
 #### Build distance matrix
 
-We used the function “MetaboSignal_distances( )” to calculate the shortest path lengths from our genes of interest: *G6pc3* (303565), *Ship2* (65038) or *Ppp2r5b* (309179) to D-glucose ("cpd:C00031"). We used the default mode (mode = "SP"), which indicates that all the network is considered as directed, except the edges linked to the target metabolite (in this case D-glucose) that are considered as undirected. This option is designed to reach metabolites acting as substrates of irreversible reactions, while keeping the directionality of the network.
+We used the function "MetaboSignal_distances( )" to calculate the shortest path lengths from our genes of interest: *G6pc3* (303565), *Ship2* (65038) or *Ppp2r5b* (309179) to D-glucose ("cpd:C00031"). We used the default mode (mode = "SP"), which indicates that all the network is considered as directed, except the edges linked to the target metabolite (in this case D-glucose) that are considered as undirected. This option is designed to reach metabolites acting as substrates of irreversible reactions, while keeping the directionality of the network.
 
 
 ```{r tidy = TRUE, message = FALSE}
@@ -129,7 +129,7 @@ MetaboSignal_distances(MetaboSignal_table, organism_code = "rno",
 
 #### Build shortest-paths subnetwork
 
-Finally, we used the function “MetaboSignal_NetworkCytoscape( )” to build a subnetwork containing betweenness-ranked shortest paths from our genes of interest: *G6pc3* (303565), *Ship2* (65038) or *Ppp2r5b* (309179) to D-glucose ("cpd:C00031").
+Finally, we used the function "MetaboSignal_NetworkCytoscape( )" to build a subnetwork containing betweenness-ranked shortest paths from our genes of interest: *G6pc3* (303565), *Ship2* (65038) or *Ppp2r5b* (309179) to D-glucose ("cpd:C00031").
 
 ```{r tidy = TRUE, tidy.opts=list(indent = 4, width.cutoff = 70), eval = FALSE }
 subnetwork <- MetaboSignal_NetworkCytoscape(MetaboSignal_table, organism_code="rno",
@@ -138,8 +138,8 @@ subnetwork <- MetaboSignal_NetworkCytoscape(MetaboSignal_table, organism_code="r
                                             file_name = "MSCytoscape")
 ```
 <br>
-This function exported three files in the working directory: “MSCytoscapeNetwork.txt”,
-“MSCytoscapeAttributesType.txt”, and “MSCytoscapeAttributesTarget”. These files were imported into cytoscape using the options: “Network from Table Text/ MS Excel” and “Attribute from Table Text/MS Excel”. The attribute files were used to customize the network (e.g. the nodes were coloured based on the molecular entity they represent), producing a final graph that looks as follows:
+This function exported three files in the working directory: "MSCytoscapeNetwork.txt",
+"MSCytoscapeAttributesType.txt", and "MSCytoscapeAttributesTarget.txt". These files were imported into cytoscape using the options: "Network from Table Text/ MS Excel" and "Attribute from Table Text/MS Excel". The attribute files were used to customize the network (e.g. the nodes were coloured based on the molecular entity they represent), producing a final graph that looks as follows:
 
 ![](./figures/network.jpg)
 
