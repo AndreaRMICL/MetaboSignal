@@ -1,7 +1,7 @@
 Package: MetaboSignal
 Type: Package
 Title: MetaboSignal: a network-based approach to overlay and explore metabolic and signaling KEGG pathways
-Version: 0.99.5
+Version: 0.99.6
 Date: 2016-06-27
 Author: Andrea Rodriguez-Martinez <andrea.rodriguez-martinez13@imperial.ac.uk>, Rafael Ayala <r.ayala14@imperial.ac.uk>, Joram M. Posma <j.posma11@imperial.ac.uk>, Ana L. Neves <ana.luisa.neves14@imperial.ac.uk>, Marc-Emmanuel Dumas <m.dumas@imperial.ac.uk>
 Maintainer: Andrea Rodriguez-Martinez <andrea.rodriguez-martinez13@imperial.ac.uk>, Rafael Ayala <r.ayala14@imperial.ac.uk>
