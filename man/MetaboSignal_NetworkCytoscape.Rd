@@ -118,7 +118,7 @@ data(MetaboSignal_table)
 # 1) Source_genes as network IDs (in this case orthology IDs): fastest option.
 # To get gene KEGG IDs use "MS_GetKEGG_GeneID( )", as shown below:
 \donttest{
-MS_GetKEGG_GeneID(c("foxo1", "ldha"), organism_name = "rat")
+MS_GetKEGG_GeneID(c("foxo1", "ldha"), organism_code = "rno", organism_name = "rat")
 }
 subnet_KEGG <- MetaboSignal_NetworkCytoscape(MetaboSignal_table, organism_code="rno",
                                              source_genes = c("K07201", "K00016"),

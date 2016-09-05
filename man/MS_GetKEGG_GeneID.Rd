@@ -9,13 +9,18 @@ or "MetaboSignal_NetworkCytoscape( )". This strategy allows reducing the time
 required to compute these functions.
 }
 \usage{
-MS_GetKEGG_GeneID(genes, organism_name, output = "vector", orthology = TRUE)
+MS_GetKEGG_GeneID(genes, organism_code, organism_name, output = "vector",
+                  orthology = TRUE)
 }
 \arguments{
   \item{genes}{character vector containing the entrez IDs or official symbols of
   the genes of interest. All genes need to be in the same ID format (i.e. entrez
   or symbols). It is preferable to use entrez IDs rather than gene symbols, since
   some gene symbols are not unique.
+  }
+  \item{organism_code}{character vector containing the KEGG code for the organism
+  of interest. For example the KEGG code for the rat is "rno". See the function
+  "MS_FindKEGG( )".
   }
   \item{organism_name}{character vector containing the common name of the organism of
   interest (e.g. "rat", "mouse", "human", "zebrafish") or taxonomy id. For more
@@ -48,12 +53,13 @@ http://www.kegg.jp/kegg/docs/keggapi.html
 \examples{
 # Transform gene symbol Hoga1 (293949) into rat-specific KEGG ID
 
-MS_GetKEGG_GeneID(genes = "Hoga1", organism_name = "rat", orthology = FALSE)
+MS_GetKEGG_GeneID(genes = "Hoga1", organism_code = "rno", organism_name = "rat",
+                  orthology = FALSE)
 \donttest{
-MS_GetKEGG_GeneID(genes = "Hoga1", "rat", output = "matrix", orthology = FALSE)
+MS_GetKEGG_GeneID(genes = "Hoga1", "rno", "rat", output = "matrix", orthology = FALSE)
 
 # Transform entrez ID 293949 into orthology KEGG ID
 
-MS_GetKEGG_GeneID(genes = "293949", output = "matrix")
+MS_GetKEGG_GeneID(genes = "293949", organism_code = "rno", output = "matrix")
 }
 }

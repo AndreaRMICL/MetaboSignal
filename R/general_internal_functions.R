@@ -6,8 +6,8 @@ convertTable = function(res) {
     } else {
         rows = strsplit(res, "\n")
         rows.len = length(rows[[1]])
-        result = matrix(unlist(lapply(rows, strsplit, "\t")),
-            nrow = rows.len, byrow = TRUE)
+        result = matrix(unlist(lapply(rows, strsplit, "\t")), nrow = rows.len,
+                        byrow = TRUE)
     }
     return(result)
 }
@@ -24,7 +24,7 @@ igraph_edited = function(MetaboSignal_table, metabolite) {
         MetaboSignal_table = MetaboSignal_table
     } else {
         linked_nodes = unique(c(MetaboSignal_table[index, 1],
-            MetaboSignal_table[index, 2]))
+                                MetaboSignal_table[index, 2]))
         index_metabolite = grep(metabolite, linked_nodes)
         linked_nodes = linked_nodes[-index_metabolite]
         new_edges = rbind(cbind(rep(metabolite, length(linked_nodes)),
@@ -34,13 +34,12 @@ igraph_edited = function(MetaboSignal_table, metabolite) {
         MetaboSignal_table = unique(rbind(MetaboSignal_table, new_edges))
 
     }
-    MetaboSignal_networkEdited_i = graph.data.frame(MetaboSignal_table,
-        directed = TRUE)
+    MetaboSignal_networkEdited_i = graph.data.frame(MetaboSignal_table, directed = TRUE)
 
     return(MetaboSignal_networkEdited_i)
 }
 
-######################### match ############################
+######################### Match ############################
 Match = function(x, want) {
     out = sapply(x, function(x, want) isTRUE(all.equal(x, want)), want)
     any(out)
@@ -55,7 +54,7 @@ check_matrix = function(network_table) {
     if (rows == 0) {
         stop("network_table needs to be a 2-column matrix", call. = FALSE)
     }
-    if (grepl("Error", network_table)[1]) {
+    if (grepl("Error", network_table[1])) {
         stop("network_table needs to be a 2-column matrix", call. = FALSE)
     }
     return(network_table)
@@ -63,11 +62,10 @@ check_matrix = function(network_table) {
 
 ####################### match_KEGG #######################
 match_KEGG = function(match, target_column, target_matrix) {
-    matchM = list()
     match = tolower(match)
     match = unique(match)
-    length(matchM) = length(match)
-    names(matchM) = match
+    matchM = vector (mode = "list", length = length(match))
+    names (matchM) = match
 
     for (key_word in match) {
         key_wordS = unlist(strsplit(key_word, " "))
@@ -75,8 +73,7 @@ match_KEGG = function(match, target_column, target_matrix) {
         if (length(key_wordS) > 1) {
             main_index = grep(key_wordS[1], tolower(target_column))
             if (length(main_index) == 0) {
-                to_print = paste("Could not match", key_word,
-                  sep = " ")
+                to_print = paste("Could not match", key_word, sep = " ")
                 message(to_print)
             } else {
                 secondary_index = c()
@@ -125,9 +122,77 @@ match_KEGG = function(match, target_column, target_matrix) {
     return(matchM)
 }
 
+####################### ASP_paths #######################
+ASP_paths = function (ASP) {
+  shortpath = rownames(as.matrix(unlist(ASP)))
+  return(shortpath)
+}
+
+####################### get_bw_score #######################
+get_bw_score = function (node, BW_matrix) {
+    index = which(BW_matrix[, 1] == node)
+    if (length(index) > 0) {
+        node_bw = as.numeric(BW_matrix[index, 2])
+    } else {
+        node_bw = 0
+    }
+    return(node_bw)
+}
+
+####################### get_global_BW_score #######################
+get_global_BW_score = function (row, BW_matrix) {
+    path_individual = as.character(row)
+    BW = sapply(path_individual, get_bw_score, BW_matrix)
+    score_BW = as.numeric(BW)
+    score_BW = sum(BW)/(length(BW)-sum(BW==0))
+
+    return(score_BW)
+}
+
+####################### BW_ranked_SP #######################
+BW_ranked_SP = function (all_paths, BW_matrix, networkBW_i, mode) {
+
+    all_nodes = unique(as.vector(all_paths))
+    index_cpd = grep("cpd:", all_nodes)
+
+    if (length(index_cpd) > 0) {
+    # This should be always true because if there are not
+    # compounds in the network the function MetaboSignal_distances wont work.
+        gene_nodes = all_nodes[-index_cpd]
+    } else (gene_nodes = all_nodes)
+
+        gene_nodes = unique(gene_nodes)
+
+    for (gene in gene_nodes) {
+
+        if (gene %in% BW_matrix[, 1] == FALSE) {
+            if (mode == "all") {
+                bw = betweenness(networkBW_i, gene, directed = FALSE,
+                                 weights = NULL, nobigint = TRUE, normalized = TRUE)
+            } else {
+                bw = betweenness(networkBW_i, gene, directed = TRUE,
+                                 weights = NULL, nobigint = TRUE, normalized = TRUE)
+            }
+            bw_line = c(gene, as.numeric(bw))
+            BW_matrix = rbind(BW_matrix, bw_line)
+            BW_matrix = unique(BW_matrix)
+        }
+  }
+    ## Get global BW score for each path
+    Global_BW_score = sapply (split(all_paths, row(all_paths)), get_global_BW_score,
+                              BW_matrix)
+
+    maxBW = which(Global_BW_score == max(Global_BW_score))[1]
+    path = all_paths[maxBW, ]
+    path = as.character(path)
+    all_paths = matrix(path, ncol = length(path))
+
+    return(all_paths)
+}
+
+
 ####################### check_mode_type #######################
-check_mode_type = function(mode = "all", type = "all", mode2 = "all",
-    type2 = "all") {
+check_mode_type = function(mode = "all", type = "all", mode2 = "all", type2 = "all") {
     if (mode[1] %in% c("all", "out", "SP") == FALSE) {
         stop("Invalid mode. Possible values for mode are: all, SP, out",
             call. = FALSE)
@@ -138,7 +203,7 @@ check_mode_type = function(mode = "all", type = "all", mode2 = "all",
     }
     if (type[1] %in% c("bw", "first", "all") == FALSE) {
         stop("Invalid type. Possible values for type are: bw, first, all",
-            call. = FALSE)
+             call. = FALSE)
     }
     if (type2[1] %in% c("bw", "distance", "all") == FALSE) {
         stop("Invalid type. Possible values for type are: bw, distance, all",
@@ -158,8 +223,8 @@ network_features = function(network_table) {
 }
 
 ####################### check_unmapped #######################
-check_unmapped = function(metabolites_backup, metabolites, genes_backup,
-    genes) {
+check_unmapped = function(metabolites_backup, metabolites, genes_backup, genes) {
+
     if (length(metabolites_backup) > length(metabolites)) {
         difference = length(metabolites_backup) - length(metabolites)
         to_print = paste("n =", difference, "target_metabolites not mapped onto",
@@ -190,21 +255,55 @@ find_unwanted_edge = function(edge, organism_code, expand_genes) {
     }
 }
 
-#################### find_bad_path ####################
-find_bad_path = function(signal_path, all_paths) {
-    if (signal_path %in% all_paths) {
-        return("good")
-    } else {
-        to_print = paste(signal_path, "-incorrect path ID: path removed", sep = "")
-        message(to_print)
-        return("bad")
-    }
-}
-
 #################### find_node_index ####################
 find_node_index = function(node, target) {
     index = which(target == node)
     return(index)
+}
+
+#################### conv_entrez_kegg ####################
+conv_entrez_kegg = function(genes, source = "entrez", organism_code) {
+    if (source == "kegg") {
+        res = keggConv("ncbi-geneid", genes)
+    } else {
+        ncbi_genes = paste("ncbi-geneid:", genes, sep = "")
+        res = keggConv(organism_code, ncbi_genes)
+    }
+    return(res)
+}
+
+#################### conv_entrez_symbol ####################
+conv_entrez_symbol = function(gene, organism_name, source = "entrez") {
+    response = query(q = gene, size = 1, species = organism_name)
+    if (NROW(response$hits) != 0L) {
+        ID = as.matrix(unlist(response))
+        rows = rownames(ID)
+        ID = as.character(ID)
+        if (source == "entrez") {
+            index = which(rows == "hits.symbol")
+        } else {
+            index = which(rows == "hits.entrezgene")
+        }
+        if (length(index) > 0) {
+            res = ID[index]
+        } else {
+            res = "NF"  # not found
+        }
+    } else {
+        res = "NF"
+    }
+    return(res)
+}
+
+#################### link_kogene ####################
+link_kogene = function(gene, koTable) {
+    index_gene = which(koTable[, 1] == gene)
+    if (length(index_gene) > 0) {
+        ko_line = koTable[index_gene[1], 2]
+    } else {
+        ko_line = "NF"
+    }
+    return(ko_line)
 }
 
 #################### find_gene_metabo #######################
@@ -223,8 +322,7 @@ find_gene_metabo = function(node, organism_code) {
 get_molecule_type = function(node, organism_code) {
     if (grepl("cpd:", node) == TRUE) {
         node_type = "metabolite"
-    } else if (grepl(organism_code, node) == TRUE | grepl("K",
-        node) == TRUE) {
+    } else if (grepl(organism_code, node) == TRUE | grepl("K", node) == TRUE) {
         file = paste("http://rest.kegg.jp/get/", node, sep = "")
         lines = try(readLines(file), silent = TRUE)
         if (grepl("Error", lines[1]) == FALSE) {
@@ -262,38 +360,35 @@ path_as_network = function(path) {
 
 ##################### orthology_clustering ######################
 #This function clusters organism-specific KEGG gene IDs into orthology IDs
-orthology_clustering = function(network_table, organism_code,
-    all_genes) {
+orthology_clustering = function(network_table, organism_code, all_genes) {
 
     to_print = ("Clustering gene IDs into orthology IDs")
     message(to_print, "\n")
     index_genes = grep(organism_code, all_genes)
     gene_nodes = unique(all_genes[index_genes])
 
-    file_ko = paste("http://rest.kegg.jp/link/ko/", organism_code,
-        sep = "")
+    file_ko = paste("http://rest.kegg.jp/link/ko/", organism_code, sep = "")
     response_ko = getURL(file_ko)
     koTable = convertTable(response_ko)
     koTable[, 2] = substr(koTable[, 2], 4, 9)
 
-    ko_M = c()
-    for (gene in gene_nodes) {
-        index_gene = which(koTable[, 1] == gene)
-        if (length(index_gene) > 0) {
-            ko_line = c(gene, koTable[index_gene[1], 2])
-            ko_M = rbind(ko_M, ko_line)
-        }
-        rownames(ko_M) = NULL
-        ko_M = unique(ko_M)
-    }
     for (i in 1:nrow(network_table)) {
         for (z in 1:ncol(network_table)) {
-            index = which(ko_M[, 1] == network_table[i, z])
+            index = which(koTable[, 1] == network_table[i, z])
             if (length(index) > 0) {
-                network_table[i, z] = ko_M[index, 2]
+                network_table[i, z] = koTable[index, 2]
             }
         }
     }
+
+    # Remove edges without ko orthology
+    unwanted_idx = c(grep(organism_code, network_table[, 1]),
+        grep(organism_code, network_table[, 2]))
+
+    if (length(unwanted_idx) > 0) {
+        network_table = network_table[-unwanted_idx]
+    }
+
     network_table = unique(network_table)
     return(network_table)
 }
@@ -370,28 +465,28 @@ MS_FindPathway = function(match = NULL, organism_code = NULL) {
 }
 
 #################### MS_FindMappedGenes ####################
-MS_FindMappedGenes = function(genes, organism_name, network_table,
-                              orthology = TRUE) {
-    List_mappedID = list()
-    length(List_mappedID) = 4
+MS_FindMappedGenes = function(genes, organism_code, organism_name,
+                              network_table, orthology = TRUE) {
+
+    List_mappedID = vector (mode = "list", length = 4)
     names(List_mappedID) = c("Input gene IDs mapped onto the network",
         "All input gene IDs not mapped onto the network", "Input gene IDs not found in KEGG",
         "KEGG gene IDs not mapped onto the network")
-    genes = gsub(" ", "", genes)  #remove potential white spaces
-    genes = unique(genes)
-    genes = tolower(genes)
-    transformed_genesM = c()
-    transformed_genesM = try(MS_GetKEGG_GeneID(genes, organism_name,
-        output = "matrix", orthology = orthology), silent = TRUE)
 
-    if (grepl("Error", transformed_genesM)[1] == TRUE) {
+    genes = gsub(" ", "", genes)  #remove potential white spaces
+    genes = tolower(unique(genes))
+
+    transformed_genesM = try(MS_GetKEGG_GeneID(genes, organism_code,
+        organism_name, output = "matrix", orthology = orthology), silent = TRUE)
+
+    if (grepl("Error", transformed_genesM[1]) == TRUE) {
         List_mappedID[[2]] = genes
         List_mappedID[[3]] = genes
         return(List_mappedID)
     }
+
     if (is.matrix(transformed_genesM) == TRUE) {
-        if (ncol(transformed_genesM) == 3) {
-            # Input genes are symbols.
+        if (ncol(transformed_genesM) == 3) { # Input genes are symbols.
             transformed_IDs = as.character(transformed_genesM[, 3])
         } else (transformed_IDs = as.character(transformed_genesM[, 2]))
         # Input genes are entrez IDs.
@@ -402,7 +497,6 @@ MS_FindMappedGenes = function(genes, organism_name, network_table,
     }
 
     ## Find input genes that are not mapped in KEGG#
-    IDs_not_inKEGG = c()
     IDs_not_inKEGG = setdiff(genes, transformed_IDs)
 
     ## Find ko or organism specific genes (transformed genes) that
@@ -413,12 +507,14 @@ MS_FindMappedGenes = function(genes, organism_name, network_table,
 
     # Find gene input IDs (symbols or entrez) that of the
     # transformed genes that were not mapped onto the network.
-    IDs_not_mapped = c()
-    for (gene in genes_not_mapped) {
-        index = which(transformed_genes == gene)
-        IDs_not_mapped = c(IDs_not_mapped, (transformed_IDs[index]))
+    if (length (genes_not_mapped) > 0) {
+        not_mapped_idx = unlist(lapply(genes_not_mapped, find_node_index,
+                                       transformed_genes))
+        IDs_not_mapped = transformed_IDs[not_mapped_idx]
+    } else {
+        IDs_not_mapped = NULL
     }
-    IDs_not_found_all = c()
+
     IDs_not_found_all = c(IDs_not_inKEGG, IDs_not_mapped)
     IDs_found = setdiff(genes, IDs_not_found_all)
 
@@ -437,8 +533,7 @@ MS_FindMappedGenes = function(genes, organism_name, network_table,
 
 ################## MS_FindMappedMetabolites ###################
 MS_FindMappedMetabolites = function(metabolites, network_table) {
-    List_metabo = list()
-    length(List_metabo) = 2
+    List_metabo = vector(mode = "list", length = 2)
     names(List_metabo) = c("metabolites mapped onto the network",
         "metabolites not mapped onto the network")
     all_nodes = unique(as.vector(network_table))
@@ -455,4 +550,3 @@ MS_FindMappedMetabolites = function(metabolites, network_table) {
     }
     return(List_metabo)
 }
-

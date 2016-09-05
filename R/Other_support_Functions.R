@@ -90,13 +90,9 @@ MS_GetShortestpaths = function(network_table, source_node, target_node,
             ASP = ASP$res
         }
 
-        all_paths = c()
-        for (i in seq_along(ASP)) {
-            shortpath = rownames(as.matrix(unlist(ASP[[i]])))
-            all_paths = rbind(all_paths, shortpath)
-            all_paths = unique(all_paths)
-            rownames(all_paths) = NULL
-        }
+        all_paths = lapply(ASP, ASP_paths)
+        all_paths = unique(do.call (rbind, all_paths))
+        rownames(all_paths) = NULL
 
         if (type == "all") {# Selects all shortest paths
             output_path = all_paths
@@ -109,54 +105,8 @@ MS_GetShortestpaths = function(network_table, source_node, target_node,
             } else {
                 if (type == "first") {
                   path = as.character(all_paths[1, ])
-                } else {
-                  # type='bw'
-                  network_i = graph.data.frame(network_table, directed = TRUE)
-
-                  ## select genes##
-                  all_nodes = unique(as.vector(all_paths))
-                  index_cpd = grep("cpd:", all_nodes)
-                  ##if it's a signaling network maybe there are not compounds
-
-                  if (length(index_cpd) > 0) {
-                    gene_nodes = all_nodes[-index_cpd]
-                  } else (gene_nodes = all_nodes)
-
-                  gene_nodes = unique(gene_nodes)
-                  for (gene in gene_nodes) {
-                    if (gene %in% BW_matrix[, 1] == FALSE) {
-                      if (mode == "all") {
-                        bw = betweenness(network_i, gene, directed = FALSE,
-                          weights = NULL, nobigint = TRUE, normalized = TRUE)
-                      } else {
-                        bw = betweenness(network_i, gene, directed = TRUE,
-                          weights = NULL, nobigint = TRUE, normalized = TRUE)
-                      }  # mode='SP' does not make sense for BW.
-
-                      bw_line = c(gene, as.numeric(bw))
-                      BW_matrix = rbind(BW_matrix, bw_line)
-                    }
-                  }
-
-                  Global_BW_score = c()
-                  for (i in 1:nrow(all_paths)) {
-                    BW = c()
-                    path_individual = as.character(all_paths[i, ])
-
-                    for (z in seq_along(path_individual)) {
-                      index = which(BW_matrix[, 1] == path_individual[z])
-                      if (length(index) > 0) { # Selects gene-bw only
-                        BW = c(BW, as.numeric(BW_matrix[index, 2]))
-                      }
-                    }
-                    BW = as.numeric(BW)
-                    score_BW = as.numeric(BW)
-                    score_BW = sum(BW)/length(BW)
-                    Global_BW_score = c(Global_BW_score, score_BW)
-                  }
-                  maxBW = which(Global_BW_score == max(Global_BW_score))[1]
-                  path = all_paths[maxBW, ]
-                  path = as.character(path)
+                } else { # type='bw'
+                  path = as.character(BW_ranked_SP(all_paths, BW_matrix, networkBW_i, mode))
                 }
             }
             output_path = path
@@ -164,7 +114,6 @@ MS_GetShortestpaths = function(network_table, source_node, target_node,
         return(output_path)
     }
 }
-
 
 #################### MS_FilterNetwork ####################
 
@@ -180,6 +129,10 @@ MS_FilterNetwork = function(network_table, mode = "all", type, target_node = NUL
     }
 
     if (type != "bw" & length(target_node) > 0) {
+      if (length(target_node) > 1) { # target_node must have length 1
+        target_node = target_node[1]
+        warning ("target_node has length > 1 and only the first element was used")
+      }
       if (target_node %in% as.vector(network_table) == FALSE) {
       stop("target_node is not in the network")
       }
@@ -209,36 +162,47 @@ MS_FilterNetwork = function(network_table, mode = "all", type, target_node = NUL
         }
     }
 
-    edges_unwanted = c()
+    edges_response = vector(mode = "character", length = nrow(network_table))
     for (i in 1:nrow(network_table)) {
         node1 = as.character(network_table[i, 1])
-        indexd1 = try(which(rownames(distance_matrix) == node1), silent = TRUE)
-        # Only works if type!=bw
-        indexbw1 = which(all_nodes == node1)
-        bw1 = try(bw[indexbw1], silent = TRUE)  #Only works if type!=distance
-        distance1 = try(Distances[indexd1], silent = TRUE)
-
         node2 = as.character(network_table[i, 2])
-        indexd2 = try(which(rownames(distance_matrix) == node2), silent = TRUE)
-        indexbw2 = which(all_nodes == node2)
-        bw2 = try(bw[indexbw2], silent = TRUE)
-        distance2 = try(Distances[indexd2], silent = TRUE)
+
+        if(type == "distance") {
+            distance1 = Distances[which(rownames(distance_matrix) == node1)]
+            distance2 = Distances[which(rownames(distance_matrix) == node2)]
+        } else if (type == "bw") {
+            bw1 = bw[which(all_nodes == node1)]
+            bw2 = bw[which(all_nodes == node2)]
+        } else { # type = "all"
+            distance1 = Distances[which(rownames(distance_matrix) == node1)]
+            distance2 = Distances[which(rownames(distance_matrix) == node2)]
+            bw1 = bw[which(all_nodes == node1)]
+            bw2 = bw[which(all_nodes == node2)]
+        }
 
         if (type == "all") {
             if (distance1 > distance_th | distance2 > distance_th |
                 bw1 < bw_th | bw2 < bw_th) {
-                edges_unwanted = c(edges_unwanted, i)
+                edges_response[i] = "unwanted"
+            } else {
+                edges_response[i] = "wanted"
             }
         } else if (type == "distance") {
             if (distance1 > distance_th | distance2 > distance_th) {
-                edges_unwanted = c(edges_unwanted, i)
+                edges_response[i] = "unwanted"
+            } else {
+                edges_response[i] = "wanted"
             }
         } else {
             if (bw1 < bw_th | bw2 < bw_th) {
-                edges_unwanted = c(edges_unwanted, i)
+                edges_response[i] = "unwanted"
+            } else {
+                edges_response[i] = "wanted"
             }
         }
     }
+
+    edges_unwanted = which(edges_response == "unwanted")
 
     if (length(edges_unwanted) >= 1) {
         network_table2 = network_table[-c(edges_unwanted), ]
@@ -249,7 +213,7 @@ MS_FilterNetwork = function(network_table, mode = "all", type, target_node = NUL
       warning ("Filtering was ignored: check filtering parameters")
     }
     colnames(network_table2) = c("node1", "node2")
-    
+
     ## Report features
     network_features(network_table2)
 
@@ -268,14 +232,14 @@ MS_NodeBW = function(network_table, mode = "all", normalized = TRUE) {
     network_table = check_matrix(network_table)
 
     network_i = graph.data.frame(network_table, directed = TRUE)
-    BW = c()
+
     nodes = unique(as.vector(network_table))
     if (mode == "all") {
         BW = betweenness(network_i, nodes, directed = FALSE,
             weights = NULL, nobigint = TRUE, normalized = normalized)
     } else {
         BW = betweenness(network_i, nodes, directed = TRUE, weights = NULL,
-            nobigint = TRUE, normalized = normalized)
+             nobigint = TRUE, normalized = normalized)
     }
     bw = as.numeric(BW)
     hist(bw, col = "gray", main = paste("Node betweeness distribution"))
@@ -296,8 +260,8 @@ MS_ToCytoscape = function(network_table, organism_code, names = TRUE,
         nrow(network_table)), network_table[, 2])
     #The column interaction will be replace by reversible or irreversible.
     rows = split(network_tableCytoscape, row(network_tableCytoscape))
-    index_to_remove = c()
 
+    index_to_include = rep(1, times = length(rows))
     for (i in 1:nrow(network_tableCytoscape)) {
         a = c(network_tableCytoscape[i, 1], network_tableCytoscape[i, 2],
               network_tableCytoscape[i, 3])
@@ -305,13 +269,14 @@ MS_ToCytoscape = function(network_table, organism_code, names = TRUE,
 
         if (Match(rows, a_2) == TRUE) {
             network_tableCytoscape[i, 2] = "reversible"
-            index = as.numeric(which(network_tableCytoscape[, 1] == a_2[1] 
+            index = as.numeric(which(network_tableCytoscape[, 1] == a_2[1]
                 & network_tableCytoscape[, 2] == a_2[2]
                 & network_tableCytoscape[, 3] == a_2[3], arr.ind = FALSE))
-            index_to_remove = c(index_to_remove, index)
+            index_to_include[index] = 0
         } else (network_tableCytoscape[i, 2] = "irreversible")
     }
     network_table_interactions = network_tableCytoscape
+    index_to_remove = which (index_to_include == 0)
 
     if (length(index_to_remove) >= 1) {
         network_table_interactions = network_table_interactions[-index_to_remove, ]

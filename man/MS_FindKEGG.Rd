@@ -14,7 +14,7 @@ MS_FindKEGG(KEGG_database, match = NULL, organism_code)
   }
   \item{match}{character vector containing one or more elements (i.e. key words) to be matched as compound names.
   }
-    \item{organism_code}{character vector containing the KEGG code for the organism
+  \item{organism_code}{character vector containing the KEGG code for the organism
   of interest. For example the KEGG code for the rat is "rno". This argument is only
   required for KEGG_database = "pathway".
   }

@@ -6,7 +6,8 @@ This function can be used to find out if a set of genes or metabolites of intere
 can be mapped onto the MetaboSignal_network.
 }
 \usage{
-MS_FindMappedNodes(nodes, network_table, organism_name, orthology = TRUE)
+MS_FindMappedNodes(nodes, network_table, organism_code, organism_name,
+                   orthology = TRUE)
 }
 \arguments{
   \item{nodes}{character vector containing the IDs of the genes or the metabolites to
@@ -19,6 +20,10 @@ MS_FindMappedNodes(nodes, network_table, organism_name, orthology = TRUE)
   }
   \item{network_table}{two-column matrix where each row represents and edge
   between two nodes. See function "MetaboSignal_matrix ( )".
+  }
+  \item{organism_code}{character vector containing the KEGG code for the organism
+  of interest. For example the KEGG code for the rat is "rno". See the function
+  "MS_FindKEGG( )". This argument is not required to map metabolites.
   }
   \item{organism_name}{character vector containing the common name of the organism of
   interest (e.g. "rat", "mouse", "human", "zebrafish") or taxonomy id. For more
@@ -51,12 +56,12 @@ MS_FindMappedNodes(nodes = c("cpd:C00031","cpd:C00245"), MetaboSignal_table,
 # Map entrez IDs onto the network
 
 MS_FindMappedNodes(nodes = c("303565", "24267", "11114"), MetaboSignal_table,
-                   organism_name = "rat", orthology = TRUE)
+                   organism_code = "rno", organism_name = "rat", orthology = TRUE)
 
 # Map gene symbols onto the network
 
-MS_FindMappedNodes(nodes = c("G6pc3","Comt"), MetaboSignal_table, organism_name = "rat",
-                   orthology = TRUE)
+MS_FindMappedNodes(nodes = c("G6pc3","Comt"), MetaboSignal_table, organism_code = "rno",
+                   organism_name = "rat",orthology = TRUE)
 
 }
 }

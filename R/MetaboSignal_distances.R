@@ -1,7 +1,7 @@
 #################### MetaboSignal_distances ###############
 
-MetaboSignal_distances = function(network_table, organism_code,
-                                  organism_name, mode = "SP", source_genes = "all",
+MetaboSignal_distances = function(network_table, organism_code, organism_name,
+                                  mode = "SP", source_genes = "all",
                                   target_metabolites = "all", names = FALSE) {
 
     ## Check mode and type
@@ -53,8 +53,7 @@ MetaboSignal_distances = function(network_table, organism_code,
     gene_index = as.numeric (unlist(gene_index))
 
     distanceGM_matrix = distance_matrix[c(gene_index), c(metabolite_index)]
-    distanceGM_matrix = matrix(distanceGM_matrix,
-                               ncol = length(metabolite_index),
+    distanceGM_matrix = matrix(distanceGM_matrix, ncol = length(metabolite_index),
                                nrow = length(gene_index))
     colnames(distanceGM_matrix) = metabolites
     rownames(distanceGM_matrix) = genes
@@ -82,10 +81,8 @@ MetaboSignal_distances = function(network_table, organism_code,
             all_reactions = network_table[index_substrates, 2]
 
             if (length(index_substrates) >= 1) {# the metabolite is a substrate
-                indexS = c()
-                for (s in seq_along(all_reactions)) {
-                  indexS = c(indexS, which(all_nodes == all_reactions[s]))
-                }
+                indexS = unlist(lapply(all_reactions, find_node_index, all_nodes))
+
                 submatrix = DG[, c(indexS)]
                 submatrix = submatrix + 1
                 submatrix = cbind(submatrix, DGM[, i])
@@ -120,6 +117,7 @@ MetaboSignal_distances = function(network_table, organism_code,
             if (grepl(organism_code, source_genes[1]) == FALSE) {
                 source_genes_backup = source_genes
                 source_genes = try(MS_GetKEGG_GeneID(genes = source_genes,
+                                                     organism_code = organism_code,
                                                      organism_name = organism_name,
                                                      orthology = FALSE),
                                    silent = TRUE)
@@ -132,6 +130,7 @@ MetaboSignal_distances = function(network_table, organism_code,
                  == 6) == FALSE) {
                 source_genes_backup = source_genes
                 source_genes = try(MS_GetKEGG_GeneID(genes = source_genes,
+                                                     organism_code = organism_code,
                                                      organism_name = organism_name,
                                                      orthology = TRUE),
                                    silent = TRUE)
@@ -147,7 +146,7 @@ MetaboSignal_distances = function(network_table, organism_code,
 
     # Map genes and metabolites
     if(grepl("Error",source_genes)[1] == TRUE){
-      stop (" None of the genes is reported in KEGG. Could be that the organism_name is incorrect")
+      stop ("None of the genes is reported in KEGG. Could be that organism_name or organism_code are incorrect")
     }
     index_genes = sapply (source_genes, find_node_index, target = all_genes)
     index_genes = as.numeric (unlist(index_genes))
@@ -171,10 +170,10 @@ MetaboSignal_distances = function(network_table, organism_code,
         }
 
         if (names == TRUE) {
-            rownames(distanceGM_final) =
-                MS_ChangeNames(rownames(distanceGM_final),organism_code)
-            colnames(distanceGM_final) =
-                MS_ChangeNames(colnames(distanceGM_final),organism_code)
+            rownames(distanceGM_final) = MS_ChangeNames(rownames(distanceGM_final),
+                                                        organism_code)
+            colnames(distanceGM_final) = MS_ChangeNames(colnames(distanceGM_final),
+                                                        organism_code)
         }
 
         ## Final report

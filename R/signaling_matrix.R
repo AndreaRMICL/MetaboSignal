@@ -1,3 +1,16 @@
+#################### build_signal_edges ####################
+build_signal_edges = function(node, edges) {
+    linked_nodes = edges[[node]]
+
+    if (length(linked_nodes) >= 1) {
+      # Node with edges
+        new_edge = cbind(rep(node, length(linked_nodes)), edges[[node]])
+    } else {
+      new_edge = NULL
+    }
+    return(new_edge)
+}
+
 #################### link_hsagene_ensembl ####################
 link_hsagene_ensembl = function(hsa_id, gene_found, xx) {
     index = which(names(xx) == hsa_id)
@@ -9,6 +22,13 @@ link_hsagene_ensembl = function(hsa_id, gene_found, xx) {
         return(gene_enS)
     }
 }
+
+#################### unique_symbol_ensembl ###################
+unique_symbol_ensembl = function (symbol, gene_enSall){
+  index = which(gene_enSall[, 2] == symbol)[1]
+  return(index)
+}
+
 
 #################### filter_genes_tissue ####################
 filter_genes_tissue = function(ensembl, tissue, m_value, f_value) {
@@ -24,7 +44,7 @@ filter_genes_tissue = function(ensembl, tissue, m_value, f_value) {
     if ("Supportive" %in% as.character(tissues[, 6]) == FALSE) {
         tissues_detected = tissue  # Filtering ignored
     } else {
-        indexSup = grep("Supportive", as.character(tissues[, 6]))
+        indexSup = grep("Supportive", as.character(tissues[,6]))
         tissues = tissues[indexSup, ]
         undetected = c(grep("Not detected", tissues[, 4]))
 
@@ -56,22 +76,15 @@ filter_genes_tissue = function(ensembl, tissue, m_value, f_value) {
 signaling_matrix = function(global_network_all, tissue, organism_code,
     organism_name, expand_genes) {
 
-    signaling_table = c()
+    signaling_table = NULL
 
     ## Create network_edges matrix
     nodes = nodes(global_network_all)
     edges = KEGGgraph::edges(global_network_all)
 
-    network_edges = c()
-    for (i in seq_along(nodes)) {
-        linked_nodes = edges[[i]]
-        if (length(linked_nodes) >= 1) {
-            # Node with edges
-            new_edge = cbind(rep(nodes[i], length(linked_nodes)),
-                edges[[i]])
-            network_edges = rbind(network_edges, new_edge)
-        }
-    }
+    network_edges = lapply(nodes, build_signal_edges, edges)
+    network_edges = unique(do.call(rbind, network_edges))
+
     if (length(network_edges) == 0) {
         to_print = ("Impossible to build a signaling network")
         warning(to_print, "\n")
@@ -91,17 +104,10 @@ signaling_matrix = function(global_network_all, tissue, organism_code,
             }
 
             ## Remove non-biological nodes from KEGG#
-            nonbio_nodes = c("fibrates)", "non-steroids)", "agents,",
-                "Antiinflammatory", "BR:br08303(A10BG", "BR:br08303(C10AB",
-                "BR:br08303(S01BC", "Thiazolidinediones)")
-            nonbio_edges = c()
-            for (a in seq_along(nonbio_nodes)) {
-                answer = which(network_edges == nonbio_nodes[a],
-                  arr.ind = TRUE)[, 1]
-                if (length(answer) >= 1) {
-                  nonbio_edges = c(nonbio_edges, answer)
-                }
-            }
+            nonbio_nodes = paste("fibrates", "non-steroids", "agents", "Antiinflammatory",
+                                 "BR:br08303","Thiazolidinediones", sep = "|")
+            nonbio_edges = c(grep(nonbio_nodes, network_edges[,1]),
+                             grep(nonbio_nodes, network_edges[,2]))
             nonbio_edges = unique(nonbio_edges)
 
             if (length(nonbio_edges) >= 1) {
@@ -121,10 +127,19 @@ signaling_matrix = function(global_network_all, tissue, organism_code,
                   "human ensembl IDs", sep = " ")
                 message(to_print)
 
+                ## Split genes in list of max 100 genes (for multiple query in KEGG API)
+                genes_list = split(nodes_network_rno, ceiling(seq_along(nodes_network_rno)/100))
+
+                ## Transform KEGG IDs into entrez IDs #
+                entrez_res = unlist(lapply(genes_list, conv_entrez_kegg, source = "kegg"))
+                entrez_ids = as.character(substr(entrez_res, 13, nchar(entrez_res)))
+                start = unlist(gregexpr(pattern = organism_code, names(entrez_res)))
+                kegg_ids = substr(names(entrez_res), start, nchar(names(entrez_res)))
+
                 ## Transform KEGG gene IDs into entrez IDs
                 if (organism_code == "hsa") {
-                  hsa_id = as.character(substr(nodes_network_rno, 5, nchar(nodes_network_rno)))
-                  genes_found = nodes_network_rno
+                  hsa_id = entrez_ids
+                  genes_found = kegg_ids
 
                   ## Tranform entrez IDs into ENSEMBL IDs
                   X = org.Hs.egENSEMBL
@@ -144,30 +159,25 @@ signaling_matrix = function(global_network_all, tissue, organism_code,
                 } else {
                   # If organism is not human Transform KEGG gene IDs into
                   # symbols
-                  symbols = c()
-                  genes_found = c()
-                  for (x in seq_along(nodes_network_rno)) {
-                    gene = nodes_network_rno[x]
-                    gene = substr(gene, 5, nchar(gene))
-                    ID = try(as.matrix(unlist(query(q = gene,
-                      size = 1, species = organism_name)$hits)),
-                      silent = TRUE)
-                    if (grepl("Error", ID)[1] == FALSE) {
-                      rows = rownames(ID)
-                      ID = as.character(ID)
-                      index = which(rows == "symbol")
-                      if (length(index) > 0) {
-                        symbols = c(symbols, ID[index])
-                        genes_found = c(genes_found, nodes_network_rno[x])
-                      }
-                    }
+                  symbols = sapply(entrez_ids, conv_entrez_symbol,
+                                   organism_name, source = "entrez")
+                  index_NF = grep("NF", symbols)
+
+                  if (length(index_NF) > 0) {
+                    symbols = symbols[-index_NF]
+                    genes_found = kegg_ids[-index_NF]
+                  } else {
+                    genes_found = kegg_ids
                   }
+
                   ## Transform gene symbols into ENSEMBL IDs
                   if (length(genes_found) > 0) {
                     symbols = toupper(symbols)
                     gene_enSall = try(suppressMessages(select(org.Hs.eg.db,
                       keys = symbols, columns = c("ENSEMBL"),
                       keytype = "SYMBOL")), silent = TRUE)
+                    # if keys are not valid the function returns an error
+                    # message.
 
                     if (grepl("Error", gene_enSall)[1] == FALSE) {
                       vector = as.character(nrow(gene_enSall))
@@ -179,19 +189,16 @@ signaling_matrix = function(global_network_all, tissue, organism_code,
                         gene_enSall[index, 1] = genes_found[i]
                       }
                       ## Remove duplicated ensembl IDs#
-                      index_wanted = c()
-                      for (symbol in symbols) {
-                        index = which(gene_enSall[, 2] == symbol)[1]
-                        index_wanted = c(index_wanted, index)
-                      }
+                      index_wanted = sapply(symbols, unique_symbol_ensembl,gene_enSall)
+
                       gene_enSall = gene_enSall[index_wanted, ]
                       gene_enSall = na.omit(gene_enSall)
                       gene_enSall = matrix(gene_enSall, ncol = 3)
 
                     } else {
                       # Filtering will be ignored
-                      gene_enSall = cbind(nodes_network_rno,
-                        nodes_network_rno, nodes_network_rno)
+                      gene_enSall = cbind(nodes_network_rno, nodes_network_rno,
+                                          nodes_network_rno)
                     }
                   } else {
                     # Filtering will be ignored
@@ -214,23 +221,17 @@ signaling_matrix = function(global_network_all, tissue, organism_code,
                   message("Filtering genes by tissue:")
                   response_filter = sapply(ensembl, filter_genes_tissue,
                     tissue, m_value = m_value, f_value = f_value)
-                  index_unwanted = as.numeric(which("gene_unwanted" ==
-                    response_filter))
+                  index_unwanted = as.numeric(which("gene_unwanted" == response_filter))
 
                   if (length(index_unwanted) > 0) {
                     # there are undetected genes
                     genes_not_in_tissue = as.character(gene_enSall[index_unwanted, 1])
 
                     ## Remove edges that contain undetected genes
-                    edges_not_in_tissue = c()
-                    for (gene in genes_not_in_tissue) {
-                      index_unwanted_edge = which(network_edges ==
-                        gene, arr.ind = TRUE)[, 1]
-                      edges_not_in_tissue = c(edges_not_in_tissue,
-                        index_unwanted_edge)
-                    }
-
-                    edges_not_in_tissue = unique(edges_not_in_tissue)
+                    edges_not_in_tissueL = sapply(lapply(split(network_edges, row(network_edges)),
+                                                         intersect, y = genes_not_in_tissue), length)
+                    edges_not_in_tissueL = as.vector (edges_not_in_tissueL)
+                    edges_not_in_tissue = unique(which(edges_not_in_tissueL >= 1))
 
                     if (nrow(network_edges) > length(edges_not_in_tissue)) {
                       network_edges = network_edges[-c(edges_not_in_tissue), ]
@@ -258,28 +259,16 @@ signaling_matrix = function(global_network_all, tissue, organism_code,
                 to_print = ("Transforming gene IDs into orthology IDs")
                 message(to_print)
 
-                file_ko = paste("http://rest.kegg.jp/link/ko/", organism_code,
-                                sep = "")
+                file_ko = paste("http://rest.kegg.jp/link/ko/", organism_code, sep = "")
                 response_ko = getURL(file_ko)
                 koTable = convertTable(response_ko)
                 koTable[, 2] = substr(koTable[, 2], 4, 9)
 
-                ko_genesM = c()
-                for (gene in nodes_network_rno) {
-                  index_gene = which(koTable[, 1] == gene)
-                  if (length(index_gene) > 0) {
-                    ko_line = c(gene, koTable[index_gene[1], 2])
-                    ko_genesM = rbind(ko_genesM, ko_line)
-                  }
-                  rownames(ko_genesM) = NULL
-                  ko_genesM = unique(ko_genesM)
-                }
-
                 for (r in 1:nrow(network_edges_new_2)) {
                   for (c in 1:ncol(network_edges_new_2)) {
-                    index = which(ko_genesM[, 1] == network_edges_new_2[r, c])
+                    index = which(koTable[, 1] == network_edges_new_2[r, c])
                     if (length(index) > 0) {
-                      network_edges_new_2[r, c] = ko_genesM[index, 2]
+                      network_edges_new_2[r, c] = koTable[index, 2]
                     }
                   }
                 }
@@ -291,3 +280,4 @@ signaling_matrix = function(global_network_all, tissue, organism_code,
     }
     return(signaling_table)
 }
+

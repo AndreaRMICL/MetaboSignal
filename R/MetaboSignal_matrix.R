@@ -1,8 +1,60 @@
+#################### get_metabonet ###################
+get_metabonet = function(path, all_paths) {
+    message(path)
+    if (path %in% all_paths) {
+        if (substr(path, 4, nchar(path)) == "01100") { # remove metabolic pathways map
+            parsed_path = NULL
+        } else {
+            # Check that the input path exists
+            file = paste("http://rest.kegg.jp/get/", path, "/kgml", sep = "")
+            pathway = try(getURL(file), silent = TRUE)
+            reactions = try(getReactions(parseKGML(pathway)), silent = TRUE)
+
+            if (grepl("Error", reactions[1]) == TRUE) {
+                to_print = paste(path, "-path ID without XML:path removed", sep = "")
+                message(to_print)
+                parsed_path = NULL
+            } else {
+                parsed_path = capture.output(reactions, file = NULL)
+            }
+        }
+    } else {
+        to_print = paste(path, "-incorrect path ID:path removed", sep = "")
+        message(to_print)
+        parsed_path = NULL
+    }
+    return(parsed_path)
+}
+
+#################### get_signalnet ###################
+get_signalnet = function(path, all_paths) {
+    message(path)
+    if (path %in% all_paths) {
+        file = paste("http://rest.kegg.jp/get/", path, "/kgml", sep = "")
+        pathway = try(getURL(file), silent = TRUE)
+        path_parsed = try(parseKGML(pathway), silent = TRUE)
+        path_network = try(KEGGpathway2Graph(path_parsed, genesOnly = FALSE,
+            expandGenes = TRUE), silent = TRUE)
+        urlcheck = try(edges(path_network), silent = TRUE)
+        if (grepl("Error", urlcheck)[1] == TRUE) {
+            to_print = paste(path, "-path ID without XML:path removed", sep = "")
+            message(to_print)
+            parsed_path = "bad_path"
+        } else {
+            parsed_path = path_network
+        }
+    } else {
+        to_print = paste(path, "-incorrect path ID:path removed", sep = "")
+        message(to_print)
+        parsed_path = "bad_path"
+    }
+    return(parsed_path)
+}
+
 #################### MetaboSignal_matrix ###################
 
 MetaboSignal_matrix = function(metabo_paths = NULL, signaling_paths = NULL,
-                               organism_name = NULL, tissue = "all",
-                               expand_genes = FALSE) {
+                               organism_name = NULL, tissue = "all", expand_genes = FALSE) {
 
     ########## 0)Preparatory steps###########
 
@@ -10,6 +62,15 @@ MetaboSignal_matrix = function(metabo_paths = NULL, signaling_paths = NULL,
     if (is.vector(metabo_paths) == FALSE & is.vector(signaling_paths) == FALSE) {
         stop("At least one metabo_path or one signaling_path is required")
     }
+
+    ## Check if organism_name exits
+    if (length(organism_name) == 0 & tissue[1] != "all") {
+        stop("An organism_name is required for tissue filtering")
+    }
+
+    ## Make metabo_paths and signaling_paths unique
+    metabo_paths = unique(metabo_paths)
+    signaling_paths = unique(signaling_paths)
 
     ## Check that all the paths belong to the same organism
     input_paths = c(metabo_paths, signaling_paths)
@@ -19,28 +80,21 @@ MetaboSignal_matrix = function(metabo_paths = NULL, signaling_paths = NULL,
         stop("All paths have to belong to the same organism: check path IDs")
     }
 
-    ## Check if organism_name exits
-    if (length(organism_name) == 0 & tissue[1] != "all"){
-      stop ("An organism_name is required for tissue filtering")
-    }
-
-    # Iniciate paths_removed
-    paths_removed = c()
-
     ## Get all paths of the organism of interest
-    file = paste("http://rest.kegg.jp/list/pathway/", organism_code, sep = "")
-    options(warn = -1)
-    lines = try(readLines(file), silent = TRUE)
-    options(warn = 0)
+    lines = try (keggList("pathway", organism_code), silent = TRUE)
 
-    if (grepl ("Error", lines)[1]) { # example: metabo_paths = "X"
-      stop("Incorrect path IDs")
+    if (grepl("Error", lines)[1]) { # example: metabo_paths = 'X'
+        stop("Incorrect path IDs")
     }
-    all_paths = substr(lines, 6, 13)
+    all_paths = substr(names(lines), 6, 13)
+
+    ## Initiate paths_included
+    paths_included = rep(1, times = length(input_paths))
+    names(paths_included) = input_paths
 
     ## Iniciate metabolic and signaling networks
-    metabolic_table_RG = c()
-    signaling_table = c()
+    metabolic_table_RG = NULL
+    signaling_table = NULL
 
     ########## 1)Build metabolic table###########
 
@@ -52,60 +106,22 @@ MetaboSignal_matrix = function(metabo_paths = NULL, signaling_paths = NULL,
         message(to_print)
 
         ### Get KGML files and transform them into reaction files####
-        path_names = c()
-        paths_removed = c()
-        list_parsed_paths = list()
+        list_parsed_paths = lapply(metabo_paths, get_metabonet, all_paths)
+        names(list_parsed_paths) = metabo_paths
+        path_names = metabo_paths
 
-        for (path in metabo_paths) {
-            message(path)
-            if (path %in% all_paths) {
-                if (substr(path, 4, nchar(path)) == "01100") { #remove metabolic pathways map
-                  paths_removed=c(paths_removed, path)
-                } else {
-                  # Check that the input path exists
-                  file = paste("http://rest.kegg.jp/get/", path, "/kgml", sep = "")
-                  pathway = try(getURL(file), silent = TRUE)
-                  reactions = try(getReactions(parseKGML(pathway)), silent = TRUE)
-                  Org_Name = try(parseKGML(pathway)@pathwayInfo@org, silent = TRUE)
-                  pathway_name = try(parseKGML(pathway)@pathwayInfo@title, silent = TRUE)
-                  pathway_name_cleaned = try(gsub(" ", "_", gsub("[^[:alnum:] ]","",
-                                                                 pathway_name)),
-                                             silent = TRUE)
-                  name = paste(Org_Name, pathway_name_cleaned, sep = "_")
-                  parsed_path = capture.output(reactions, file = NULL)
-                  path_names = c(path_names, name)
-
-                  if (grepl("Error", parsed_path)[1] == TRUE) {
-                    to_print = paste(path, "-path ID without XML:path removed",
-                                     sep = "")
-                    message(to_print)
-                    paths_removed = c(paths_removed, path)
-                    list_parsed_paths[[name]] = c()
-                  } else {
-                    if(length(parsed_path) <= 1) {
-                      paths_removed = c(paths_removed,path)
-                    }
-                    list_parsed_paths[[name]] = parsed_path
-                  }
-                }
-            } else {
-                to_print = paste(path, "-incorrect path ID:path removed",
-                                 sep = "")
-                message(to_print)
-                paths_removed = c(paths_removed, path)
-            }
-        }
         if (length(list_parsed_paths) == 0) {
             to_print = ("Impossible to build a metabolic network")
             warning(to_print, "\n")
 
         } else {
             ## Remove empty paths: for example oxidative phosphorylation#
-            length_paths = sapply(list_parsed_paths,length)
+            length_paths = sapply(list_parsed_paths, length)
             empty_paths = which(length_paths <= 1)
 
             if (length(empty_paths) >= 1) {
                 list_parsed_paths = list_parsed_paths[-c(empty_paths)]
+                paths_included[path_names[empty_paths]] = 0
                 path_names = path_names[-c(empty_paths)]
             }
             if (length(list_parsed_paths) == 0) {
@@ -115,9 +131,7 @@ MetaboSignal_matrix = function(metabo_paths = NULL, signaling_paths = NULL,
 
                 ### Create metabolic_table_RG ####
                 metabolic_table_RG = metabolic_matrix(path_names,
-                                                      list_parsed_paths,
-                                                      organism_code,
-                                                      expand_genes)
+                  list_parsed_paths, organism_code, expand_genes)
             }
         }
     }
@@ -132,45 +146,27 @@ MetaboSignal_matrix = function(metabo_paths = NULL, signaling_paths = NULL,
         to_print = ("Reading paths:")
         message(to_print)
 
-        ## Remove bad paths
-        response_paths = sapply (signaling_paths, find_bad_path, all_paths = all_paths)
-        bad_path = grep("bad", response_paths)
+        network_list = lapply(signaling_paths, get_signalnet, all_paths)
 
-        if (length(bad_path) >= 1) {
-            paths_removed = c(paths_removed, signaling_paths [ c(bad_path)])
-            signaling_paths = signaling_paths[-c(bad_path)]
-        }
-        if (length(signaling_paths) == 0) {
+        if (length(network_list) == 0) {
             to_print = ("Impossible to build a signaling network")
             warning(to_print, "\n")
-        } else {
-            network_list = list()
-            for (path in signaling_paths) {
-                file = paste("http://rest.kegg.jp/get/", path, "/kgml", sep = "")
-                pathway = try(getURL(file), silent = TRUE)
-                path_parsed = try(parseKGML(pathway), silent = TRUE)
-                path_network = try(KEGGpathway2Graph(path_parsed,
-                                                     genesOnly = FALSE,
-                                                     expandGenes = TRUE),
-                                   silent = TRUE)
-                urlcheck = try(edges(path_network), silent = TRUE)
 
-                if (grepl("Error", urlcheck)[1] == TRUE) {
-                  paths_removed = c(paths_removed, path)
-                  to_print = paste(path, "-path ID without XML:path removed",
-                    sep = "")
-                  message(to_print)
-                } else {
-                  message(path)
-                  network_list[[path]] = path_network
-                }
+        } else {
+            ## Remove empty paths
+            length_paths = sapply(network_list, is.vector)
+            empty_paths = which(length_paths == 1)
+
+            if (length(empty_paths) >= 1) {
+                network_list = network_list[-c(empty_paths)]
+                paths_included[signaling_paths[empty_paths]] = 0
             }
             if (length(network_list) == 0) {
                 to_print = ("Impossible to build a signaling network")
                 warning(to_print, "\n")
+
             } else {
                 global_network_all = mergeGraphs(network_list)
-                global_network_all
 
                 ### Create signaling_table ####
                 signaling_table = signaling_matrix(global_network_all,
@@ -183,7 +179,7 @@ MetaboSignal_matrix = function(metabo_paths = NULL, signaling_paths = NULL,
 
     ########## 3)Build MetaboSignal table ###########
 
-    MetaboSignal_table = c()
+    MetaboSignal_table = NULL  #initiate the variable
     answer_metabo = is.matrix(metabolic_table_RG)
     answer_signal = is.matrix(signaling_table)
 
@@ -203,24 +199,20 @@ MetaboSignal_matrix = function(metabo_paths = NULL, signaling_paths = NULL,
 
     # Collapse network
     if (is.matrix(MetaboSignal_table) == FALSE) {
-        stop("Impossible to build a MetaboSignal_table with these paths","\n")
+        stop("Impossible to build a MetaboSignal_table with these paths",
+            "\n")
     } else {
-        for (i in 1:nrow(MetaboSignal_table)) {
-            for (z in 1:ncol(MetaboSignal_table)) {
-                node = MetaboSignal_table[i, z]
-                if (grepl("_", node) == TRUE) {
-                  geneID = substr(node, 11, nchar(node))
-                  MetaboSignal_table[i, z] = geneID
-                }
-            }
-        }
+        idx = grepl("_", MetaboSignal_table)
+        nodes = MetaboSignal_table[idx]
+        MetaboSignal_table[idx] = substr(nodes, 11, nchar(nodes))
 
-        ## Final changes: if an edge contains node that donnt contain k, cpd, rn or
-        ## organism_code, or both nodes of the same egde are duplicated,it's removed.
+        ## Final changes: if an edge contains node that donnt contain
+        ## k, cpd, rn or organism_code, or both nodes of the same egde
+        ## are duplicated,it's removed.
 
         edges_response = sapply(split(MetaboSignal_table, row(MetaboSignal_table)),
-                                find_unwanted_edge, organism_code = organism_code, 
-                                expand_genes = expand_genes)
+            find_unwanted_edge, organism_code = organism_code,
+            expand_genes = expand_genes)
         edges_unwanted_global = grep("unwanted", edges_response)
 
         if (length(edges_unwanted_global) >= 1) {
@@ -229,7 +221,8 @@ MetaboSignal_matrix = function(metabo_paths = NULL, signaling_paths = NULL,
         }
 
         if (is.matrix(MetaboSignal_table) == FALSE) {
-            stop("Impossible to build a MetaboSignal_table with these paths","\n")
+            stop("Impossible to build a MetaboSignal_table with these paths",
+                "\n")
         } else {
             if (nrow(MetaboSignal_table) == 0) {
                 stop("Impossible to build a MetaboSignal_table with these paths")
@@ -245,15 +238,12 @@ MetaboSignal_matrix = function(metabo_paths = NULL, signaling_paths = NULL,
         message()
         network_features(MetaboSignal_table)
 
-        if (length(paths_removed) > 0) {
-            path_line = c()
-            for (path in paths_removed) {
-                path_line = paste(path_line, path, sep = ",")
-            }
-            path_line = substr(path_line, 2, nchar(path_line))
+        if (sum(paths_included == 0)) {
+            paths_removed = names(paths_included[paths_included == 0])
+            path_line = paste(paths_removed, collapse = ",")
             message()
-            to_print = paste("Some path IDs were not used:", path_line,
-                             sep = "")
+            to_print = paste("Some path IDs were not used:",
+                path_line, sep = "")
             warning(to_print, "\n")
         }
     }

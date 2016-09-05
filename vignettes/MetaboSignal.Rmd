@@ -2,9 +2,12 @@
 bibliography: knitcitations.bib
 csl: template.csl
 css: mystyle.css
-output: html_document
+output: 
+  BiocStyle::html_document
 vignette: |
-  %\VignetteEngine{knitr::rmarkdown} %\VignetteIndexEntry{MetaboSignal} \usepackage[utf8]{inputenc}
+  %\VignetteEngine{knitr::rmarkdown} 
+  %\VignetteIndexEntry{MetaboSignal} 
+  \usepackage[utf8]{inputenc}
 ---
 
 
@@ -23,14 +26,14 @@ Rafael Ayala, Joram M. Posma, Ana L. Neves, Marc-Emmanuel Dumas </p>
 # Abstract
 <p style="font-size:90%"> "MetaboSignal" is an R package designed to overlay metabolic and signaling pathways reported in the Kyoto Encyclopaedia of Genes and Genomes (KEGG). It is a network-based approach that allows exploring the topological relationship between genes (signaling- or metabolic-genes) and metabolites. MetaboSignal is ideally suited to identify biologically relevant candidate genes in metabolomics quantitative trait locus (mQTL) mapping studies, especially in the case of *trans*-acting associations. It can be also used to provide mechanistic explanations of the metabolic perturbations observed in genetic modes (e.g. knock-out) or to identify target metabolic pathways of signaling genes. <br><br> </p>
 
-## 1-Introduction
+# Introduction
 
 The Kyoto Encyclopaedia of Genes and Genomes (KEGG) [@kanehisa2000] is the reference database to explore biochemical pathways and cellular processes. KEGG pathways are stored and displayed as graphical diagrams composed by nodes (e.g. metabolites, genes, reactions) and edges, which represent the physical interaction (e.g. metabolic reaction, activaction, or binding) between pairs of nodes. 
 
 In the last years, various tools have been developed for analyzing and customizing metabolic or signaling KEGG graphs independently [@zhang2009kegggraph; @posma2014]. However, these approaches ignore the interconnection between the genome and the metabolome, and consequently they cannot provide an integrated overview of regulatory events leading to the observed metabolic patterns. In order to address this problem, we have developed an R-based toolbox, called MetaboSignal, that allows building organism-specific KEGG metabolic and signaling networks that account for the interaction between metabolites and genes (both metabolic and signaling). Importantly, our approach allows creating tissue-specific networks, where genes undetected in a given target tissue are neglected. 
 <br><br>
 
-## 2-Software features
+# Software features
 
 The metabolic and signaling KEGG pathways of interest are parsed using the KEGGgraph package [@zhang2009kegggraph], to generate organism-specific metabolic and signaling directed network-tables (i.e. 2-column matrix). The user can decide whether gene nodes will represent organism-specific KEGG gene IDs or orthology IDs. Importantly, MetaboSignal allows building tissue-specific signaling networks, where genes not expressed in a given target tissue are neglected. Tissue filtering is achieved using the hpar package [@gattohpar], which is based on data from the Human Protein Atlas database.
 
@@ -39,14 +42,14 @@ The metabolic and signaling networks are then merged to build a MetaboSignal net
 Finally, the original network or the sub-networks are exported to be visualized in CytoScape [@shanon2003]. MetaboSignal also generates several attribute files that allow customization of the node parameters. Alternatively, the network can be transformed into an igraph object and visualized in R. 
 <br><br>
 
-## 3-Example
+# Example
 
 In order to illustrate the functionality of our package, we have used transcriptomic and metabonomic datasets from white adipose tissue of rat congenic strains derived from the diabetic Goto-Kakizaki (GK) and normoglycemic Brown-Norway (BN) rats. Despite of the strong genetic similarities between the congenic strains, each strain exhibits distinctive metabolic and gene expression patterns.
 
 We next describe how MetaboSignal was used to provide a mechanistic explanation of the gene-metabolite associations found in this study. As an example, we will use the associations between the genes: *G6pc3* (303565), *Ship2* (65038) or *Ppp2r5b* (309179) and D-glucose.
 <br><br>
 
-#### Define input data
+## Define input data
 
 We built a rat-specific MetaboSignal network by merging two metabolic pathways: "glycolysis"  and "inositol phosphate metabolism", with two signaling pathways: "insulin signaling pathway" and "PI3K-Akt signaling pathway".
 
@@ -72,7 +75,7 @@ signaling_paths <- c("rno04910", "rno04151")
 ```
 <br>
 
-#### Build MetaboSignal network-table
+## Build MetaboSignal network-table
 
 We used the selected metabo_paths and signaling_paths to build a MetaboSignal network-table. Since we focused on an adipose tissue dataset, we decided to exclude signaling genes not expressed in soft tissue.
 
@@ -98,7 +101,7 @@ MetaboSignal_table is a two-column matrix where each row represents an edge betw
 In total, 24 signaling genes were excluded of the network for not being expressed in adipocytes. Examples of these genes are: *Kit*, *Fgfr3*, *Elk1*, *Csf3r*, *Il4r*, *Nos3*.
 <br><br>
 
-#### Customize MetaboSignal network-table
+## Customize MetaboSignal network-table
 
 Given that we were not interest in discriminating between different isomers of D-glucose, we used the function "MS_ReplaceNodes( )" to group the IDs of alpha-D-glucose ("cpd:C00267"), beta-D-glucose ("cpd:C00221") and D-glucose ("cpd:C00031").
 
@@ -115,7 +118,7 @@ MS_FindMappedNodes(nodes = c("cpd:C00267", "cpd:C00221", "cpd:C00031"),
 ```
 <br>
 
-#### Build distance matrix
+## Build distance matrix
 
 We used the function "MetaboSignal_distances( )" to calculate the shortest path lengths from our genes of interest: *G6pc3* (303565), *Ship2* (65038) or *Ppp2r5b* (309179) to D-glucose ("cpd:C00031"). We used the default mode (mode = "SP"), which indicates that all the network is considered as directed, except the edges linked to the target metabolite (in this case D-glucose) that are considered as undirected. This option is designed to reach metabolites acting as substrates of irreversible reactions, while keeping the directionality of the network.
 
@@ -127,7 +130,7 @@ MetaboSignal_distances(MetaboSignal_table, organism_code = "rno",
 ```
 <br>
 
-#### Build shortest-paths subnetwork
+## Build shortest-paths subnetwork
 
 Finally, we used the function "MetaboSignal_NetworkCytoscape( )" to build a subnetwork containing betweenness-ranked shortest paths from our genes of interest: *G6pc3* (303565), *Ship2* (65038) or *Ppp2r5b* (309179) to D-glucose ("cpd:C00031").
 
@@ -145,7 +148,7 @@ This function exported three files in the working directory: "MSCytoscapeNetwork
 
 
 
-## 4-References
+# References
 
 
 
