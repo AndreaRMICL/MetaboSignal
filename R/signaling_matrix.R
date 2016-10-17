@@ -40,7 +40,7 @@ filter_genes_tissue = function(ensembl, tissue, m_value, f_value) {
         message(" -Progress:100% completed")
     }
     tissues = as.matrix(getHpa(ensembl, hpadata = "hpaNormalTissue"))
-    print(head(tissues))
+    #print(head(tissues))
 
     if ("Supportive" %in% as.character(tissues[, 6]) == FALSE) {
         tissues_detected = tissue  # Filtering ignored

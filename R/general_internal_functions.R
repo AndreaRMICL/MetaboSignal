@@ -243,9 +243,12 @@ check_unmapped = function(metabolites_backup, metabolites, genes_backup, genes) 
 #################### find_unwanted_edge ####################
 find_unwanted_edge = function(edge, organism_code, expand_genes) {
     if (expand_genes == TRUE) {
-        pattern = paste(organism_code, "cpd|rn", sep = "|")
+        pattern = paste(organism_code, "cpd:|rn:", sep = "|")
     } else {
-        pattern = "K|cpd|rn"
+        # if(grepl(organism_code, edge[1]) | grepl(organism_code, edge[2])) {
+        #     return ("unwanted")
+        # }
+        pattern = "K|cpd:|rn:"
     }
     if (grepl(pattern, edge[1]) == FALSE | grepl(pattern, edge[2]) ==
         FALSE | edge[1] == edge[2]) {
@@ -386,7 +389,7 @@ orthology_clustering = function(network_table, organism_code, all_genes) {
         grep(organism_code, network_table[, 2]))
 
     if (length(unwanted_idx) > 0) {
-        network_table = network_table[-unwanted_idx]
+        network_table = network_table[-unwanted_idx, ]
     }
 
     network_table = unique(network_table)
