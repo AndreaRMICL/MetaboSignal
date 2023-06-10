@@ -5,7 +5,8 @@ link_reaction_gene = function(enzyme, gene, ko, reactionTable) {
     index = which(reactionTable[, 1] == enzyme)
     if (length(index) > 0) {
         reactions = reactionTable[index, 2]
-        line = cbind(reactions, rep(enzyme, length(reactions)), rep(gene, length(reactions)),
+        line = cbind(reactions, rep(enzyme, length(reactions)),
+                     rep(gene, length(reactions)),
                      rep(ko, length(reactions)))
         line = matrix(line, ncol = 4, nrow = length(reactions))
     } else {
@@ -131,15 +132,15 @@ metabolic_matrix = function(path_names, list_parsed_paths, organism_code,
 
     ## Link reactions to genes (organism specific or orthology IDs)
 
-    file_enzyme = paste("http://rest.kegg.jp/link/enzyme/", organism_code, sep = "")
+    file_enzyme = paste("https://rest.kegg.jp/link/enzyme/", organism_code, sep = "")
     response_enzyme = getURL(file_enzyme)
     enzymeTable = convertTable(response_enzyme)
 
-    file_reaction = "http://rest.kegg.jp/link/reaction/enzyme"
+    file_reaction = "https://rest.kegg.jp/link/reaction/enzyme"
     response_reaction = getURL(file_reaction)
     reactionTable = convertTable(response_reaction)
 
-    file_ko = paste("http://rest.kegg.jp/link/ko/", organism_code, sep = "")
+    file_ko = paste("https://rest.kegg.jp/link/ko/", organism_code, sep = "")
     response_ko = getURL(file_ko)
     koTable = convertTable(response_ko)
     koTable[, 2] = substr(koTable[, 2], 4, 9)
@@ -181,4 +182,27 @@ metabolic_matrix = function(path_names, list_parsed_paths, organism_code,
     }
     return(metabolic_table_RG)
 }
+
+################## get_metabonetR ####################
+get_metabonetR <- function(path) {
+    message(path)
+    if (substr(path, 4, nchar(path)) == "01100") { # remove metabolic pathways map
+        parsed_path <- NULL
+    } else {
+        # Check that the input path exists
+        file <- paste("https://rest.kegg.jp/get/", path, "/kgml", sep = "")
+        pathway <- try(getURL(file), silent = TRUE)
+        reactions <- try(getReactions(parseKGML(pathway)), silent = TRUE)
+
+        if (grepl("Error", reactions[1]) == TRUE) {
+            to_print <- paste(path, "-path ID without XML:path removed", sep = "")
+            message(to_print)
+            parsed_path <- NULL
+        } else {
+            parsed_path <- capture.output(reactions, file = NULL)
+        }
+    }
+    return(parsed_path)
+}
+
 

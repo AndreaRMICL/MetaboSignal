@@ -1,18 +1,35 @@
-#################### MS_ChangeNames ########################
+#################### MS_changeNames ########################
+MS_changeNames = function(nodes, organism_code) {
 
-MS_ChangeNames = function(nodes, organism_code) {
-
+    compoundM = c()
     ## Check if there are compound nodes##
     if (length(grep("cpd:", nodes) > 0)) {
         # Get compounds table
-        file = "http://rest.kegg.jp/list/compound"
+        file = "https://rest.kegg.jp/list/compound"
         response = getURL(file)
-        compoundM = convertTable(response)
+        metaboliteM = convertTable(response)
+        compoundM = rbind(compoundM, metaboliteM)
+    }
+    ## Check if there are drug nodes##
+    if (length(grep("dr:", nodes) > 0)) {
+        # Get drugs table
+        file = "https://rest.kegg.jp/list/drug"
+        response = getURL(file)
+        drugM = suppressWarnings(convertTable(response))
+        compoundM = rbind(compoundM, drugM)
+    }
+    ## Check if there are glycan compounds
+    if (length(grep("gl:", nodes) > 0)) {
+        # Get glycan table
+        file = "https://rest.kegg.jp/list/glycan"
+        response = getURL(file)
+        glycanM = convertTable(response)
+        compoundM = rbind(compoundM, glycanM)
     }
 
     for (i in seq_along(nodes)) {
         node = nodes[i]  # Backup for last else of the loop
-        if (grepl("cpd:", node) == TRUE) {
+        if (grepl("cpd:|gl:|dr:", node) == TRUE) {
             index = which(compoundM[, 1] == nodes[i])
             if (length(index) > 0) {
                 name = compoundM[index, 2]
@@ -31,6 +48,16 @@ MS_ChangeNames = function(nodes, organism_code) {
             if (nchar(nodes[i]) > 12 & grepl("", node) == TRUE) {
                 nodes[i] = node  #example dme:Dmel_CG10000
             }
+        } else if (organism_code == "hsa" & !is.na (as.numeric(node))) {
+            node_ent = mapIds(EnsDb.Hsapiens.v75, keys = node,
+                              keytype = "ENTREZID", column = "SYMBOL")
+            if (length(node_ent) == 0) {
+                nodes[i] = node
+            } else if (is.na(node_ent)) {
+                nodes[i] = node
+            } else {
+                nodes[i] = node_ent
+            }
         } else {
             nodes[i] = node
         }
@@ -38,13 +65,18 @@ MS_ChangeNames = function(nodes, organism_code) {
     return(nodes)
 }
 
-#################### MS_GetShortestpaths ######################
+#################### MS_shortestPaths ######################
+MS_shortestPaths = function(network_table, source_node, target_node,
+                            mode = "out", type = "first") {
 
-MS_GetShortestpaths = function(network_table, source_node, target_node,
-                               mode = "SP", type = "first") {
+    ## Check that source_node and target_node are different
+    if (source_node == target_node) {
+        stop ("source_node and target_not must be different")
+    }
 
-    ## Force network_table to be a unique 2-column matrix
-    network_table = check_matrix(network_table)
+    ## Network_table must be a matrix with at least two columns
+    check_matrix_v2(network_table, n = 2)
+    network_table = network_table[, 1:2]
 
     ## Check mode and type
     check_mode_type(mode = mode, type = type)
@@ -104,20 +136,26 @@ MS_GetShortestpaths = function(network_table, source_node, target_node,
                 path = as.character(all_paths)
             } else {
                 if (type == "first") {
-                  path = as.character(all_paths[1, ])
+                    path = as.character(all_paths[1, ])
                 } else { # type='bw'
-                  path = as.character(BW_ranked_SP(all_paths, BW_matrix, networkBW_i, mode))
+                    path = as.character(BW_ranked_SP(all_paths, BW_matrix,
+                                                     networkBW_i, mode))
                 }
             }
             output_path = path
         }
+
+        ## Path as network
+        if(length(output_path) == 0) {
+            return(NULL)
+        }
+
         return(output_path)
     }
 }
 
-#################### MS_FilterNetwork ####################
-
-MS_FilterNetwork = function(network_table, mode = "all", type, target_node = NULL,
+#################### MS_topologyFilter ####################
+MS_topologyFilter = function(network_table, mode = "all", type, target_node = NULL,
                             distance_th, bw_th) {
 
     # Check mode and type
@@ -138,8 +176,10 @@ MS_FilterNetwork = function(network_table, mode = "all", type, target_node = NUL
       }
     }
 
-    # Force network_table to be a unique 2-column matrix
-    network_table = check_matrix(network_table)
+    # Check network_table
+    check_matrix_v2(network_table, n = 2)
+    network_tableBU = network_table # in case it comes from MS2
+    network_table = network_table[, 1:2] # in case it comes from MS2
 
     network_i = graph.data.frame(network_table, directed = TRUE)
     all_nodes = unique(as.vector(network_table))
@@ -205,31 +245,30 @@ MS_FilterNetwork = function(network_table, mode = "all", type, target_node = NUL
     edges_unwanted = which(edges_response == "unwanted")
 
     if (length(edges_unwanted) >= 1) {
-        network_table2 = network_table[-c(edges_unwanted), ]
-        network_table2 = matrix(network_table2, ncol = 2)
-        colnames(network_table2) = c("node1", "node2")
+        network_table2 = network_tableBU[-c(edges_unwanted), ]
+        network_table2 = matrix(network_table2, ncol = ncol(network_tableBU))
+        colnames(network_table2) = colnames(network_tableBU)
     } else {
       network_table2 = network_table
       warning ("Filtering was ignored: check filtering parameters")
     }
-    colnames(network_table2) = c("node1", "node2")
 
     ## Report features
-    network_features(network_table2)
+    network_features(network_table2[, 1:2])
 
     return(network_table2)
 
 }
 
-#################### MS_NodeBW ####################
-
-MS_NodeBW = function(network_table, mode = "all", normalized = TRUE) {
+#################### MS_nodeBW ####################
+MS_nodeBW = function(network_table, mode = "all", normalized = TRUE) {
 
     ## Check mode and type
     check_mode_type(mode2 = mode)
 
-    ## Force network_table to be a unique 2-column matrix
-    network_table = check_matrix(network_table)
+    ## Check network_table
+    check_matrix_v2(network_table, n = 2)
+    network_table = network_table[, 1:2] # in case it comes from MS2.
 
     network_i = graph.data.frame(network_table, directed = TRUE)
 
@@ -245,98 +284,3 @@ MS_NodeBW = function(network_table, mode = "all", normalized = TRUE) {
     hist(bw, col = "gray", main = paste("Node betweeness distribution"))
     return(BW)
 }
-
-
-#################### MS_ToCytoscape ####################
-
-MS_ToCytoscape = function(network_table, organism_code, names = TRUE,
-                          target_nodes = NULL, file_name = "Cytoscape") {
-
-    ## Force network_table to be a unique 2-column matrix
-    network_table = check_matrix(network_table)
-
-    ## Build cytoscape network with interaction based on edge directionality
-    network_tableCytoscape = cbind(network_table[, 1], rep("interaction",
-        nrow(network_table)), network_table[, 2])
-    #The column interaction will be replace by reversible or irreversible.
-    rows = split(network_tableCytoscape, row(network_tableCytoscape))
-
-    index_to_include = rep(1, times = length(rows))
-    for (i in 1:nrow(network_tableCytoscape)) {
-        a = c(network_tableCytoscape[i, 1], network_tableCytoscape[i, 2],
-              network_tableCytoscape[i, 3])
-        a_2 = rev(a)
-
-        if (Match(rows, a_2) == TRUE) {
-            network_tableCytoscape[i, 2] = "reversible"
-            index = as.numeric(which(network_tableCytoscape[, 1] == a_2[1]
-                & network_tableCytoscape[, 2] == a_2[2]
-                & network_tableCytoscape[, 3] == a_2[3], arr.ind = FALSE))
-            index_to_include[index] = 0
-        } else (network_tableCytoscape[i, 2] = "irreversible")
-    }
-    network_table_interactions = network_tableCytoscape
-    index_to_remove = which (index_to_include == 0)
-
-    if (length(index_to_remove) >= 1) {
-        network_table_interactions = network_table_interactions[-index_to_remove, ]
-        network_table_interactions = matrix(network_table_interactions, ncol = 3)
-        # In case the network originally had only two edges that were reversible.
-        # we force vector to matrix
-    }
-    colnames(network_table_interactions) = c("source_node", "interaction",
-                                             "target_node")
-    rownames(network_table_interactions) = NULL
-
-    if (names == TRUE) {
-        all_nodes_network = unique(as.vector(network_table_interactions))
-        all_nodes_names = MS_ChangeNames(all_nodes_network, organism_code)
-        for (i in seq_along(all_nodes_names)) {
-            network_table_interactions[network_table_interactions ==
-                all_nodes_network[i]] = all_nodes_names[i]
-        }
-    }
-    cytoscape = as.data.frame(network_table_interactions, rownames = NULL)
-    file_nameN = paste(file_name, "Network.txt", sep = "")
-
-    write.table(cytoscape, file_nameN, row.names = FALSE, sep = "\t",
-                quote = FALSE, col.names = FALSE)
-
-    ## Create network attributes
-    nodes = unique(as.vector(network_table))
-    node_type_all = as.character(sapply (nodes, get_molecule_type,
-                                         organism_code = organism_code))
-
-    if (names == TRUE) {
-        for (i in seq_along(all_nodes_names)) {
-            nodes[nodes == all_nodes_network[i]] = all_nodes_names[i]
-        }
-    }
-    node_typeM = cbind(nodes, node_type_all)
-    node_typeM = as.data.frame(node_typeM)
-    file_nameAtype = paste(file_name, "AttributesType.txt", sep = "")
-
-    write.table(node_typeM, file_nameAtype, row.names = FALSE, sep = "\t",
-                quote = FALSE, col.names = FALSE)
-
-    ## Create node attribute to HL genes of interest
-    if (length(target_nodes) > 0) {
-        nodes = unique(as.vector(network_table))
-        node_HL_all = as.character(sapply (nodes, get_target_type,
-                                           target_nodes = target_nodes))
-
-        if (names == TRUE) {
-            for (i in seq_along(all_nodes_names)) {
-                nodes[nodes == all_nodes_network[i]] = all_nodes_names[i]
-            }
-        }
-        node_HLM = cbind(nodes, node_HL_all)
-        node_HLM = as.data.frame(node_HLM)
-        file_nameAtarget = paste(file_name, "AttributesTarget.txt", sep = "")
-
-        write.table(node_HLM, file_nameAtarget, row.names = FALSE, sep = "\t",
-                    quote = FALSE, col.names = FALSE)
-    }
-    return(cytoscape)
-}
-

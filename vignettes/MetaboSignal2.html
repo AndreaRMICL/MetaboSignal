@@ -120,13 +120,11 @@ $(document).ready(function () {
 <ul>
 <li><a href="#abstract"><span class="toc-section-number">1</span> Abstract</a></li>
 <li><a href="#introduction"><span class="toc-section-number">2</span> Introduction</a></li>
-<li><a href="#software-features"><span class="toc-section-number">3</span> Software features</a></li>
-<li><a href="#example"><span class="toc-section-number">4</span> Example</a><ul>
-<li><a href="#define-input-data"><span class="toc-section-number">4.1</span> Define input data</a></li>
-<li><a href="#build-metabosignal-network-table"><span class="toc-section-number">4.2</span> Build MetaboSignal network-table</a></li>
-<li><a href="#customize-metabosignal-network-table"><span class="toc-section-number">4.3</span> Customize MetaboSignal network-table</a></li>
-<li><a href="#build-distance-matrix"><span class="toc-section-number">4.4</span> Build distance matrix</a></li>
-<li><a href="#build-shortest-paths-subnetwork"><span class="toc-section-number">4.5</span> Build shortest-paths subnetwork</a></li>
+<li><a href="#hands-on"><span class="toc-section-number">3</span> Hands-on</a><ul>
+<li><a href="#load-data"><span class="toc-section-number">3.1</span> Load data</a></li>
+<li><a href="#build-kegg-based-network"><span class="toc-section-number">3.2</span> Build KEGG-based network</a></li>
+<li><a href="#build-regulatory-network"><span class="toc-section-number">3.3</span> Build regulatory network</a></li>
+<li><a href="#merge-kegg-network-and-regulatory-network"><span class="toc-section-number">3.4</span> Merge KEGG network and regulatory network</a></li>
 </ul></li>
 <li><a href="#references">References</a></li>
 </ul>
@@ -134,192 +132,195 @@ $(document).ready(function () {
 
 <!-- Title block -->
 <br>
-<p style="text-align:center;font-size:200%;color:Red">
-MetaboSignal
+<p style="text-align:center;font-size:150%;color:Red">
+MetaboSignal 2: merging KEGG with additional interaction resources
+</p>
+<p style="text-align:center;font-size:100%;color:Gray">
+Andrea Rodriguez Martinez, Maryam Anwar, Rafael Ayala, Joram M. Posma, Ana L. Neves, Marc-Emmanuel Dumas
 </p>
 <p style="text-align:center;font-size:90%;color:Gray">
-Andrea Rodriguez Martinez, Rafael Ayala, Joram M. Posma, Ana L. Neves, Marc-Emmanuel Dumas
-</p>
-<p style="text-align:center;font-size:90%;color:Gray">
-May 25, 2017
+May 22, 2017
 </p>
 <p><br></p>
 <div id="abstract" class="section level1">
 <h1><span class="header-section-number">1</span> Abstract</h1>
 <p style="font-size:110%">
-“MetaboSignal” is an R package designed to overlay metabolic and signaling pathways reported in the Kyoto Encyclopedia of Genes and Genomes (KEGG). It is a network-based approach that allows exploring the topological relationship between genes (signaling- or metabolic-genes) and metabolites. MetaboSignal is ideally suited to identify biologically relevant candidate genes in metabolomics quantitative trait locus (mQTL) mapping studies, especially in the case of <em>trans</em>-acting associations. It can be also used to provide mechanistic explanations of the metabolic perturbations observed in genetic modes (e.g. knock-out) or to identify target metabolic pathways of signaling genes. <br><br>
+MetaboSignal is an R package designed to investigate the genetic regulation of the metabolome, using KEGG as primary reference database. The main goal of this vignette is to illustrate how KEGG interactions can be merged with two large literature-curated resources of human regulatory interactions: OmniPath and TRRUST.<br><br>
 </p>
 </div>
 <div id="introduction" class="section level1">
 <h1><span class="header-section-number">2</span> Introduction</h1>
 <p style="font-size:110%">
-The Kyoto Encyclopedia of Genes and Genomes (KEGG) <span class="citation">(Kanehisa &amp; Goto 2000)</span> is the reference database to explore biochemical pathways and cellular processes. KEGG pathways are stored and displayed as graphical diagrams composed by nodes (e.g. metabolites, genes, reactions) and edges, which represent the physical interaction (e.g. metabolic reaction, activaction, or binding) between pairs of nodes.
-</p>
-<p style="font-size:110%">
-In the last years, various tools have been developed for analyzing and customizing metabolic or signaling KEGG graphs independently <span class="citation">(Zhang &amp; Wiemann 2009; Posma <em>et al.</em> 2014)</span>. However, these approaches ignore the interconnection between the genome and the metabolome, and consequently they cannot provide an integrated overview of regulatory events leading to the observed metabolic patterns. In order to address this problem, we have developed an R-based toolbox, called MetaboSignal, that allows building organism-specific KEGG metabolic and signaling networks that account for the interaction between metabolites and genes (both metabolic and signaling). Importantly, our approach allows creating tissue-specific networks, where genes undetected in a given target tissue are neglected. <br><br>
-</p>
-</div>
-<div id="software-features" class="section level1">
-<h1><span class="header-section-number">3</span> Software features</h1>
-<p style="font-size:110%">
-The metabolic and signaling KEGG pathways of interest are parsed using the KEGGgraph package <span class="citation">(Zhang &amp; Wiemann 2009)</span>, to generate organism-specific metabolic and signaling directed network-tables (i.e. 3-column matrix). The user can decide whether gene nodes will represent organism-specific KEGG gene IDs or orthology IDs. Importantly, in the case of human, MetaboSignal allows building tissue-specific signaling networks, where genes not expressed in a given target tissue are neglected. Tissue filtering is achieved using the hpar package <span class="citation">(Gatto)</span>, which is based on data from the Human Protein Atlas database.
-</p>
-<p style="font-size:110%">
-The metabolic and signaling networks are then merged to build a MetaboSignal network, which can be further customized according to different criteria. For instance, undesired nodes can be removed or nodes representing chemical isomers of the same compound can be clustered into a common node. MetaboSignal evaluates network topology (e.g. node betweeness) and calculates a distance matrix <span class="citation">(Csardi &amp; Nepusz 2006)</span> containing the shortest path lengths from a list of genes to a list of metabolites of interest. MetaboSignal also builds subnetworks containing betweenness-ranked shortest paths from a list of genes to a list of metabolites (presumably selected based on the distance matrix).
-</p>
-<p style="font-size:110%">
-Finally, the original network or the sub-networks are exported to be visualized in CytoScape <span class="citation">(Shannon <em>et al.</em> 2003)</span>. MetaboSignal also generates several attribute files that allow customization of the node parameters. Alternatively, the network can be transformed into an igraph object and visualized in R. <br><br>
-</p>
-</div>
-<div id="example" class="section level1">
-<h1><span class="header-section-number">4</span> Example</h1>
-<p style="font-size:110%">
-In order to illustrate the functionality of our package, we have used transcriptomic and metabonomic datasets from white adipose tissue of rat congenic strains derived from the diabetic Goto-Kakizaki (GK) and normoglycemic Brown-Norway (BN) rats. Despite of the strong genetic similarities between the congenic strains, each strain exhibits distinctive metabolic and gene expression patterns.
-</p>
-<p style="font-size:110%">
-We next describe how MetaboSignal was used to provide a mechanistic explanation of the gene-metabolite associations found in this study. As an example, we will use the associations between the genes: <em>G6pc3</em> (303565), <em>Ship2</em> (65038) or <em>Ppp2r5b</em> (309179) and D-glucose. <br><br>
-</p>
-<div id="define-input-data" class="section level2">
-<h2><span class="header-section-number">4.1</span> Define input data</h2>
-<p style="font-size:110%">
-We built a rat-specific MetaboSignal network by merging two metabolic pathways: “glycolysis” and “inositol phosphate metabolism”, with two signaling pathways: “insulin signaling pathway” and “PI3K-Akt signaling pathway”.
-</p>
-<p style="font-size:110%">
-We used the function “MS_keggFinder( )” to find the “organism_code” of the rat and the IDs of the pathways of interest. Notice that the IDs of all metabolic and signaling pathways of a given organism can be retrieved by calling the function “MS_getPathIds()”.
-</p>
-<pre class="r"><code>MS_keggFinder(KEGG_database = &quot;organism&quot;, match = &quot;rattus&quot;)</code></pre>
-<pre><code>## $rattus
-##                                        T 
-##                                 &quot;T01003&quot; 
-##                            organism_code 
-##                                    &quot;rno&quot; 
-##                            organism_name 
-##                &quot;Rattus norvegicus (rat)&quot; 
-##                              description 
-## &quot;Eukaryotes;Animals;Vertebrates;Mammals&quot;</code></pre>
-<pre class="r"><code>MS_keggFinder(KEGG_database = &quot;pathway&quot;, match = c(&quot;glycol&quot;, 
-    &quot;inositol phosphate&quot;, &quot;insulin signal&quot;, &quot;akt&quot;), 
-    organism_code = &quot;rno&quot;)</code></pre>
-<pre><code>## $glycol
-##                                                  path_ID 
-##                                          &quot;path:rno00010&quot; 
-##                                         path_Description 
-## &quot;Glycolysis / Gluconeogenesis - Rattus norvegicus (rat)&quot; 
-## 
-## $`inositol phosphate`
-##                                                   path_ID 
-##                                           &quot;path:rno00562&quot; 
-##                                          path_Description 
-## &quot;Inositol phosphate metabolism - Rattus norvegicus (rat)&quot; 
-## 
-## $`insulin signal`
-##                                               path_ID 
-##                                       &quot;path:rno04910&quot; 
-##                                      path_Description 
-## &quot;Insulin signaling pathway - Rattus norvegicus (rat)&quot; 
-## 
-## $akt
-##                                                path_ID 
-##                                        &quot;path:rno04151&quot; 
-##                                       path_Description 
-## &quot;PI3K-Akt signaling pathway - Rattus norvegicus (rat)&quot;</code></pre>
-<p style="font-size:110%">
-Based on this,
-</p>
-<pre class="r"><code>metabo_paths &lt;- c(&quot;rno00010&quot;, &quot;rno00562&quot;)
-signaling_paths &lt;- c(&quot;rno04910&quot;, &quot;rno04151&quot;)</code></pre>
-<p><br></p>
-</div>
-<div id="build-metabosignal-network-table" class="section level2">
-<h2><span class="header-section-number">4.2</span> Build MetaboSignal network-table</h2>
-<p style="font-size:110%">
-We used the selected metabo_paths and signaling_paths to build a MetaboSignal network-table.
-</p>
-<pre class="r"><code>MetaboSignal_table &lt;- MS_keggNetwork(metabo_paths = metabo_paths, 
-    signaling_paths = signaling_paths)</code></pre>
-<p style="font-size:110%">
-MetaboSignal_table is a three-column matrix where each row represents an edge between two nodes (source to target). The third column indicates the type of interaction. Since we did not use the option “expand_genes”, the gene nodes of the network represent orthology KEGG IDs. Note that clustering gene-isoforms by orthology IDs is a very convenient strategy to reduce network dimensionality without losing biological information.
+Metabolites are organized in biochemical pathways regulated by signaling-transduction pathways, allowing the organism to adapt to environmental changes and maintain homeostasis. We developed MetaboSignal <span class="citation">(Rodriguez-Martinez <em>et al.</em> 2017)</span> as a tool to explore the relationships between genes (both enzymatic and signaling) and metabolites, using the Kyoto Encyclopedia of Genes and Genomes (KEGG) <span class="citation">(Kanehisa &amp; Goto 2000)</span> as primary reference database. In order to generate a more complete picture of the genetic regulation of the metabolome, we have now updated and standarized the functionalities of MetaboSignal to facilitate its integration with additional resources of molecular interactions. In this vignette we show how KEGG interactions can be merged with human regulatory interactions from two large literature-curated resources: OmniPath <span class="citation">(Turei <em>et al.</em> 2016)</span> and TRRUST<span class="citation">(Hang <em>et al.</em> 2015)</span>.
 </p>
 <p><br></p>
 </div>
-<div id="customize-metabosignal-network-table" class="section level2">
-<h2><span class="header-section-number">4.3</span> Customize MetaboSignal network-table</h2>
+<div id="hands-on" class="section level1">
+<h1><span class="header-section-number">3</span> Hands-on</h1>
+<div id="load-data" class="section level2">
+<h2><span class="header-section-number">3.1</span> Load data</h2>
 <p style="font-size:110%">
-Given that we were not interest in discriminating between different isomers of D-glucose, we used the function “MS_replaceNodes( )” to group the IDs of alpha-D-glucose (“cpd:C00267”), beta-D-glucose (“cpd:C00221”) and D-glucose (“cpd:C00031”).
+We begin by loading the MetaboSignal package:
 </p>
-<pre class="r"><code>MetaboSignal_table &lt;- MS_replaceNode(node1 = c(&quot;cpd:C00267&quot;, 
-    &quot;cpd:C00221&quot;), node2 = &quot;cpd:C00031&quot;, MetaboSignal_table)</code></pre>
+<pre class="r"><code>## Load MetaboSignal
+library(MetaboSignal)</code></pre>
 <p style="font-size:110%">
-We used the function “MS_findMappedNodes( )” to check that the glucose isomers had been successfully clustered.
+We then load the “regulatory_interactions” and “kegg_pathways” datasets, containing the following information:<br><br> - regulatory_interactions: matrix containing a set of regulatory interactions reported in OmniPath (directed protein-protein and signaling interactions) and TRRUST (transcription factor-target interactions). For each interaction, both literature reference(s) and primary database reference(s) are reported. Users are responsible for respecting the terms of the licences of these databases and for citing them when required. Notice that there are some inconsistencies between databases in terms of direction and sign of the interactions. This is likely to be due to curation errors, or also to the fact that some interactions might be bidirectional or have different sign depending on the tissue. Users can update/edit this matrix as required. <br><br> - kegg_pathways: matrix containing the identifiers (IDs) of relevant metabolic (n = 85) and signaling (n = 126) human KEGG pathways. These IDs were retrieved using the function “MS_getPathIds( )”.
 </p>
-<pre class="r"><code>MS_findMappedNodes(nodes = c(&quot;cpd:C00267&quot;, &quot;cpd:C00221&quot;, 
-    &quot;cpd:C00031&quot;), MetaboSignal_table)</code></pre>
-<pre><code>## $mapped_nodes
-## [1] &quot;cpd:C00031&quot;
-## 
-## $unmapped_nodes
-## [1] &quot;cpd:C00267&quot; &quot;cpd:C00221&quot;</code></pre>
+</p>
+<pre class="r"><code>## Regulatory interactions
+data(&quot;regulatory_interactions&quot;)
+head(regulatory_interactions[, c(1, 3, 5)])</code></pre>
+<pre><code>##      source_entrez target_entrez interaction_type
+## [1,] &quot;351&quot;         &quot;2&quot;           &quot;o_Unknown&quot;     
+## [2,] &quot;3576&quot;        &quot;2&quot;           &quot;o_Unknown&quot;     
+## [3,] &quot;7040&quot;        &quot;2&quot;           &quot;o_Unknown&quot;     
+## [4,] &quot;7042&quot;        &quot;2&quot;           &quot;o_Unknown&quot;     
+## [5,] &quot;2064&quot;        &quot;12&quot;          &quot;o_Unknown&quot;     
+## [6,] &quot;3817&quot;        &quot;12&quot;          &quot;o_Unknown&quot;</code></pre>
+<pre class="r"><code>## KEGG metabolic pathways
+data(&quot;kegg_pathways&quot;)
+head(kegg_pathways[, -2])</code></pre>
+<pre><code>##      Path_id    Path_category                         Path_type  
+## [1,] &quot;hsa00010&quot; &quot;Metabolism; Carbohydrate metabolism&quot; &quot;metabolic&quot;
+## [2,] &quot;hsa00020&quot; &quot;Metabolism; Carbohydrate metabolism&quot; &quot;metabolic&quot;
+## [3,] &quot;hsa00030&quot; &quot;Metabolism; Carbohydrate metabolism&quot; &quot;metabolic&quot;
+## [4,] &quot;hsa00040&quot; &quot;Metabolism; Carbohydrate metabolism&quot; &quot;metabolic&quot;
+## [5,] &quot;hsa00051&quot; &quot;Metabolism; Carbohydrate metabolism&quot; &quot;metabolic&quot;
+## [6,] &quot;hsa00052&quot; &quot;Metabolism; Carbohydrate metabolism&quot; &quot;metabolic&quot;</code></pre>
+<pre class="r"><code>## KEGG signaling pathways
+tail(kegg_pathways[, -2])</code></pre>
+<pre><code>##        Path_id    Path_category                          Path_type  
+## [206,] &quot;hsa04964&quot; &quot;Organismal Systems; Excretory system&quot; &quot;signaling&quot;
+## [207,] &quot;hsa04966&quot; &quot;Organismal Systems; Excretory system&quot; &quot;signaling&quot;
+## [208,] &quot;hsa04970&quot; &quot;Organismal Systems; Digestive system&quot; &quot;signaling&quot;
+## [209,] &quot;hsa04971&quot; &quot;Organismal Systems; Digestive system&quot; &quot;signaling&quot;
+## [210,] &quot;hsa04972&quot; &quot;Organismal Systems; Digestive system&quot; &quot;signaling&quot;
+## [211,] &quot;hsa04976&quot; &quot;Organismal Systems; Digestive system&quot; &quot;signaling&quot;</code></pre>
 <p><br></p>
 </div>
-<div id="build-distance-matrix" class="section level2">
-<h2><span class="header-section-number">4.4</span> Build distance matrix</h2>
+<div id="build-kegg-based-network" class="section level2">
+<h2><span class="header-section-number">3.2</span> Build KEGG-based network</h2>
 <p style="font-size:110%">
-We used the function “MetaboSignal_distances( )” to calculate the shortest path lengths from our genes of interest: <em>G6pc3</em> (303565), <em>Ship2</em> (65038) or <em>Ppp2r5b</em> (309179) to D-glucose (“cpd:C00031”). We used the default mode (mode = “SP”), which indicates that all the network is considered as directed, except the edges linked to the target metabolite (in this case D-glucose) that are considered as undirected. This option is designed to reach metabolites acting as substrates of irreversible reactions, while keeping the directionality of the network.
-</p>
-<pre class="r"><code>## Get KEGG IDs
-MS_convertGene(genes = c(&quot;303565&quot;, &quot;65038&quot;, &quot;309179&quot;), 
-    organism_code = &quot;rno&quot;, organism_name = &quot;rat&quot;, output = &quot;matrix&quot;)</code></pre>
-<pre><code>##      KEGG_ID  entrez_ID
-## [1,] &quot;K01084&quot; &quot;303565&quot; 
-## [2,] &quot;K15909&quot; &quot;65038&quot;  
-## [3,] &quot;K11584&quot; &quot;309179&quot;</code></pre>
-<pre class="r"><code>MS_distances(MetaboSignal_table, organism_code = &quot;rno&quot;, 
-    source_genes = c(&quot;K01084&quot;, &quot;K15909&quot;, &quot;K11584&quot;), 
-    target_metabolites = &quot;cpd:C00031&quot;, names = TRUE)</code></pre>
-<pre><code>##        D-Glucose
-## G6PC           1
-## SHIP2          4
-## PPP2R5         3</code></pre>
-<p><br></p>
-</div>
-<div id="build-shortest-paths-subnetwork" class="section level2">
-<h2><span class="header-section-number">4.5</span> Build shortest-paths subnetwork</h2>
+We use the function “MS_getPathIds( )” to retrieve the IDs of all human metabolic and signaling KEGG pathways.
+<p>
+<pre class="r"><code>## Get IDs of metabolic and signaling human pathways
+hsa_paths &lt;- MS_getPathIds(organism_code = &quot;hsa&quot;)</code></pre>
 <p style="font-size:110%">
-Finally, we used the function “MetaboSignal_shortestPathsNetwork( )” to build a subnetwork containing betweenness-ranked shortest paths from our genes of interest: <em>G6pc3</em> (303565), <em>Ship2</em> (65038) or <em>Ppp2r5b</em> (309179) to D-glucose (“cpd:C00031”).
+This function generates a “.txt” file in the working directory named “hsa_pathways.txt”. We recommend that users take some time to inspect this file and carefully select the metabolic and signaling pathways that will be used to build the network. In this example, we selected the pathways stored in the “kegg_pathways” dataset.
 </p>
-<pre class="r"><code>MS_shortestPathsNetwork(MetaboSignal_table, organism_code = &quot;rno&quot;, 
-    source_nodes = c(&quot;K01084&quot;, &quot;K15909&quot;, &quot;K11584&quot;), 
-    target_nodes = &quot;cpd:C00031&quot;, type = &quot;bw&quot;, file_name = &quot;MS&quot;)</code></pre>
-<br>
 <p style="font-size:110%">
-This function exported three files in the working directory: “MS_Network.txt”, “MS_NodesType.txt”, and “MS_TargetNodes.txt”. These files were imported into cytoscape using the options: file-import-network and file-import-table. The attribute files were used to customize the network (e.g. the nodes were coloured based on the molecular entity they represent), producing a final graph that looks as follows:
+Next, we use the function “MS_keggNetwork( )” to build a MetaboSignal network, by merging the selected metabolic and signaling KEGG pathways stored in the “kegg_pathways” dataset:
 </p>
-<div class="figure">
-<img src="data:image/png;base64,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" />
+<pre class="r"><code>## Create metabo_paths and signaling_paths vectors
+metabo_paths &lt;- kegg_pathways[kegg_pathways[, &quot;Path_type&quot;] == 
+    &quot;metabolic&quot;, &quot;Path_id&quot;]
 
+signaling_paths &lt;- kegg_pathways[kegg_pathways[, &quot;Path_type&quot;] == 
+    &quot;signaling&quot;, &quot;Path_id&quot;]</code></pre>
+<pre class="r"><code>## Build KEGG network (might take a while)
+keggNet_example &lt;- MS_keggNetwork(metabo_paths, signaling_paths, 
+    expand_genes = TRUE, convert_entrez = TRUE)</code></pre>
+<pre class="r"><code>## See network format
+head(keggNet_example)</code></pre>
+<pre><code>##      source       target interaction_type       
+## [1,] &quot;cpd:C00084&quot; &quot;217&quot;  &quot;k_compound:reversible&quot;
+## [2,] &quot;cpd:C00084&quot; &quot;224&quot;  &quot;k_compound:reversible&quot;
+## [3,] &quot;cpd:C00084&quot; &quot;221&quot;  &quot;k_compound:reversible&quot;
+## [4,] &quot;cpd:C00084&quot; &quot;219&quot;  &quot;k_compound:reversible&quot;
+## [5,] &quot;cpd:C00084&quot; &quot;222&quot;  &quot;k_compound:reversible&quot;
+## [6,] &quot;cpd:C00084&quot; &quot;220&quot;  &quot;k_compound:reversible&quot;</code></pre>
+<p style="font-size:110%">
+The network is formatted as a three-column matrix where each row represents an edge between two nodes (from source to target). The nodes represent the following molecular entities: chemical compounds (KEGG IDs), reactions (KEGG IDs), signaling genes (Entrez IDs) and metabolic genes (Entrez IDs). The type of interaction is reported in the “interaction_type” column. Compound-gene (or gene-compound) interactions are designated as: “k_compound:reversible” or “k_compound:irreversible”, depending on the direction of the interaction. Other types of interactions correspond to gene-gene interactions. When KEGG reports various types of interaction for the same interactant pair, the “interaction_type” is collapsed using “/”.
+</p>
+<p style="font-size:110%">
+Notice that when transforming KEGG signaling maps into binary interactions, a number of indirect interactions are introduced, such as interactions involving all members of a proteic complex or proteins interacting <em>via</em> an intermediary compound (<em>e.g.</em> AC and PKA, <em>via</em> cAMP). We recommend excluding these indirect interactions, as they might alter further topological analyses. In this example, we remove interactions classified as: “unknown”, “indirect-compound”, “indirect-effect”, “dissociation”, “state-change”, “binding”, “association”.
+</p>
+<pre class="r"><code>## Get all types of interaction
+all_types &lt;- unique(unlist(strsplit(keggNet_example[, &quot;interaction_type&quot;], 
+    &quot;/&quot;)))
+all_types &lt;- gsub(&quot;k_&quot;, &quot;&quot;, all_types)
+
+## Select wanted interactions
+wanted_types &lt;- setdiff(all_types, c(&quot;unknown&quot;, &quot;indirect-compound&quot;, 
+    &quot;indirect-effect&quot;, &quot;dissociation&quot;, &quot;state-change&quot;, &quot;binding&quot;, 
+    &quot;association&quot;))
+print(wanted_types)  # interactions that will be retained</code></pre>
+<pre><code>##  [1] &quot;compound:reversible&quot;   &quot;compound:irreversible&quot; &quot;expression&quot;           
+##  [4] &quot;activation&quot;            &quot;phosphorylation&quot;       &quot;dephosphorylation&quot;    
+##  [7] &quot;inhibition&quot;            &quot;repression&quot;            &quot;ubiquitination&quot;       
+## [10] &quot;methylation&quot;           &quot;glycosylation&quot;</code></pre>
+<pre class="r"><code>## Filter keggNet_example to retain only wanted
+## interactions
+wanted_types &lt;- paste(wanted_types, collapse = &quot;|&quot;)
+keggNet_clean &lt;- keggNet_example[grep(wanted_types, keggNet_example[, 
+    3]), ]</code></pre>
+<p><br></p>
 </div>
+<div id="build-regulatory-network" class="section level2">
+<h2><span class="header-section-number">3.3</span> Build regulatory network</h2>
+<p style="font-size:110%">
+We then use the function “MS2_ppiNetwork( )” to generate a regulatory network, by merging the signaling interactions from OmniPath and TRRUST, or by selecting the interactions of only one of these databases. Some examples are shown below:
+</p>
+<pre class="r"><code>## Build regulatory network of TRRUST interactions
+trrustNet_example &lt;- MS2_ppiNetwork(datasets = &quot;trrust&quot;)
+
+## Build regulatory network of OmniPath interactions
+omnipathNet_example &lt;- MS2_ppiNetwork(datasets = &quot;omnipath&quot;)
+
+## Build regulatory network by merging OmniPath and TRRUST interactions
+ppiNet_example &lt;- MS2_ppiNetwork(datasets = &quot;all&quot;)
+
+## See network format
+head(ppiNet_example)</code></pre>
+<pre><code>##      source target interaction_type
+## [1,] &quot;351&quot;  &quot;2&quot;    &quot;o_Unknown&quot;     
+## [2,] &quot;3576&quot; &quot;2&quot;    &quot;o_Unknown&quot;     
+## [3,] &quot;7040&quot; &quot;2&quot;    &quot;o_Unknown&quot;     
+## [4,] &quot;7042&quot; &quot;2&quot;    &quot;o_Unknown&quot;     
+## [5,] &quot;2064&quot; &quot;12&quot;   &quot;o_Unknown&quot;     
+## [6,] &quot;3817&quot; &quot;12&quot;   &quot;o_Unknown&quot;</code></pre>
+<p style="font-size:110%">
+Each of these networks is formatted as a three-column matrix where each row represents an edge between two nodes (from source to target). The third column indicates the interaction type and the source of the interaction (OmniPath: “o_”, TRRUST: “t_”). Notice that common interactions between both databases are collapsed, and the interaction type is reported as: “o_; t_;”.
+</p>
+<p><br></p>
+</div>
+<div id="merge-kegg-network-and-regulatory-network" class="section level2">
+<h2><span class="header-section-number">3.4</span> Merge KEGG network and regulatory network</h2>
+<p style="font-size:110%">
+Finally, we use the function “MS2_mergeNetworks( )” to merge the KEGG-based network with the regulatory network.
+</p>
+<pre class="r"><code>## Merge networks
+mergedNet_example &lt;- MS2_mergeNetworks(keggNet_clean, ppiNet_example)</code></pre>
+<pre class="r"><code>## See network format
+head(mergedNet_example)</code></pre>
+<pre><code>##      source       target interaction_type       
+## [1,] &quot;cpd:C00084&quot; &quot;217&quot;  &quot;k_compound:reversible&quot;
+## [2,] &quot;cpd:C00084&quot; &quot;224&quot;  &quot;k_compound:reversible&quot;
+## [3,] &quot;cpd:C00084&quot; &quot;221&quot;  &quot;k_compound:reversible&quot;
+## [4,] &quot;cpd:C00084&quot; &quot;219&quot;  &quot;k_compound:reversible&quot;
+## [5,] &quot;cpd:C00084&quot; &quot;222&quot;  &quot;k_compound:reversible&quot;
+## [6,] &quot;cpd:C00084&quot; &quot;220&quot;  &quot;k_compound:reversible&quot;</code></pre>
+<p style="font-size:110%">
+The network is formatted as a three-column matrix where each row represents an edge between two nodes (from source to target). The third column indicates the interaction type and the source of the interaction (KEGG: “k_”, OmniPath: “o_”, TRRUST: “t_”). Notice that common interactions between both databases are collapsed, and the interaction type is reported as: “k_;o_;t_;”. This network can be further customized and subsequently used to explore gene-metabolite associations as described in the introductory vignette of the package.
+</p>
+<p><br></p>
 </div>
 </div>
 <div id="references" class="section level1 unnumbered">
 <h1>References</h1>
 <div id="refs" class="references">
-<div id="ref-csardi2006igraph">
-<p>Csardi, G. &amp; Nepusz, T. (2006). The igraph software package for complex network research. <em>InterJournal</em>, <strong>Complex Systems</strong>, 1695. Retrieved from <a href="http://igraph.org" class="uri">http://igraph.org</a></p>
-</div>
-<div id="ref-gattohpar">
-<p>Gatto, L. <em>Hpar: Human protein atlas in r</em>.</p>
+<div id="ref-han2015">
+<p>Hang, H., Shim, H., Shin, D., Shim, J.E., Ko, Y., Shin, J., H Kim, Cho, A., Kim, E., Lee, T., Kim, H., Kim, K., Yang, S., Bae, D., Yun, A., Kim, S., Kim, C.Y., Cho, H.J., Kang, B., Shin, S. &amp; Lee, I. (2015). TRRUST: A reference database of human transcriptional regulatory interactions. <em>Scientific Reports</em>, <strong>12</strong>, 11432. Retrieved from <a href="https://www.nature.com/articles/srep11432" class="uri">https://www.nature.com/articles/srep11432</a></p>
 </div>
 <div id="ref-kanehisa2000">
 <p>Kanehisa, M. &amp; Goto, S. (2000). KEGG: Kyoto encyclopedia of genes and genomes. <em>Nucleic Acids Research</em>, <strong>28</strong>, 27–30. Retrieved from <a href="http://nar.oxfordjournals.org/content/28/1/27" class="uri">http://nar.oxfordjournals.org/content/28/1/27</a></p>
 </div>
-<div id="ref-posma2014">
-<p>Posma, J.M., Robinette, S.L., Holmes, E. &amp; Nicholson, J.K. (2014). MetaboNetworks, an interactive matlab-based toolbox for creating, customizing and exploring sub-networks from kegg. <em>Bioinformatics</em>, <strong>30</strong>, 893–895. Retrieved from <a href="http://bioinformatics.oxfordjournals.org/content/30/6/893" class="uri">http://bioinformatics.oxfordjournals.org/content/30/6/893</a></p>
+<div id="ref-Rodriguez-Martinez2017">
+<p>Rodriguez-Martinez, A., Ayala, R., Posma, J.M., Neves, A.L., Gauguier, D., Nicholson, J.K. &amp; Dumas, M.-E. (2017). MetaboSignal: A network-based approach for topological analysis of metabotype regulation via metabolic and signaling pathways. <em>Bioinformatics</em>, <strong>33</strong>, 773–775. Retrieved from <a href="https://academic.oup.com/bioinformatics/article/33/5/773/2725552/" class="uri">https://academic.oup.com/bioinformatics/article/33/5/773/2725552/</a></p>
 </div>
-<div id="ref-shannon2003">
-<p>Shannon, P., Markiel, A., Ozier, O., Baliga, N.S., Wang, J.T., Ramage, D., Amin, N. &amp; Ideker, B.S.T. (2003). Cytoscape: A software environment for integrated models of biomolecular interaction networks. <em>Genome Research</em>, <strong>13</strong>, 2498–2504. Retrieved from <a href="http://genome.cshlp.org/content/13/11/2498" class="uri">http://genome.cshlp.org/content/13/11/2498</a></p>
-</div>
-<div id="ref-zhang2009">
-<p>Zhang, J.D. &amp; Wiemann, S. (2009). KEGGgraph: A graph approach to kegg pathway in r and bioconductor. <em>Bioinformatics</em>, <strong>25</strong>, 1470–1471. Retrieved from <a href="http://bioinformatics.oxfordjournals.org/content/25/11/1470" class="uri">http://bioinformatics.oxfordjournals.org/content/25/11/1470</a></p>
+<div id="ref-turei2016">
+<p>Turei, D., Korcsmaros, T. &amp; Saez-Rodriguez, J. (2016). OmniPath: Guidelines and gateway for literature-curated signaling pathway resources. <em>Nature Methods</em>, <strong>13</strong>, 966–967. Retrieved from <a href="http://www.nature.com/nmeth/journal/v13/n12/full/nmeth.4077.html" class="uri">http://www.nature.com/nmeth/journal/v13/n12/full/nmeth.4077.html</a></p>
 </div>
 </div>
 </div>

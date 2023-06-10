@@ -1,0 +1,78 @@
+\docType{data}
+\name{regulatory_interactions}
+\alias{regulatory_interactions}
+\title{Regulatory interactions from OmniPath and TRRUST}
+\format{Matrix}
+\description{
+  This matrix contains a set of human regulatory interactions compiled from two
+  literature-curated resources: OmniPath (directed protein-protein and signaling
+  interactions reported in databases with an appropiate licence) and TRRUST
+  (transcription factor-target interactions). For each interaction, both literature
+  references and primary database references are reported. The users are responsible
+  for respecting the terms of their licences and for citing them when required.
+  This matrix can be edited or updated by the users if required.
+}
+\references{
+Ceol, A., et al. (2007). DOMINO: a database of domain-peptide interactions. Nucleic
+Acid Research, 35, D557-60.
+
+Cui, Q., et al. (2007). A map of human cancer signaling. Molecular Systems Biology,
+3:152.
+
+Diella, F., et al. (2004). Phospho.ELM: a database of experimentally verified
+phosphorylation sites in eukaryotic proteins. BMC Bioinformatics, 22, 5:79.
+
+Dinkel, H., et al. (2012). ELM--the database of eukaryotic linear motifs. Nucleic
+Acid Research, 40, D242-51.
+
+Han, H., et al. (2015). TRRUST: a reference database of human transcriptional
+regulatory interactions. Scientific Reports, 15, 11432.
+
+Hornbeck, P.V., et al. (2012). PhosphoSitePlus: a comprehensive resource for investigating
+the structure and function of experimentally determined post-translational modifications
+in man and mouse. Nucleic Acid Research, 40, D261-70.
+
+Korcsmaros, T., et al. (2010). Uniformly curated signaling pathways reveal
+tissue-specific cross-talks and support drug target discovery. Bioinformatics,
+26, 2042:2050.
+
+Lynn, D.J., et al. (2008). InnateDB: facilitating systems-level analyses of the
+mammalian innate immune response. Molecular Systems Biology, 4, 218.
+
+Orchard, S., et al. (2014). The MIntAct project--IntAct as a common curation platform
+for 11 molecular interaction databases. Nucleic Acid Research, 242, D358-63.
+
+Pagel, P., et al. (2005). The MIPS mammalian protein-protein interaction database.
+Bioinformatics, 21, 832-834.
+
+Papp, D., et al. (2012). The NRF2-related interactome and regulome contain
+multifunctional proteins and fine-tuned autoregulatory loops. FEBS Letters, 586,
+1795-802.
+
+Pawson, A.J., et al. (2014). The IUPHAR/BPS Guide to PHARMACOLOGY: an expert-driven
+knowledgebase of drug targets and their ligands. Nucleic Acids Research, 42, D1098-106.
+
+Peri, S., et al. (2003). Development of human protein reference database as an initial
+platform for approaching systems biology in humans. Genome Research, 13, 2363-2371.
+
+Turei, D., et al. (2015). Autophagy Regulatory Network - a systems-level bioinformatics
+resource for studying the mechanism and regulation of autophagy. Autophagy, 11, 155-165.
+
+Turei, D., et al. (2016). OmniPath: guidelines and gateway for literature-curated
+signaling pathway resources. Nature methods, 13, 966-967.
+
+Sarkar, D., et al. (2015). LMPID: a manually curated database of linear motifs
+mediating protein-protein interactions. Database(Oxford), pii: bav014.
+
+Shin, Y.C., et al. (2011). TRIP Database: a manually curated database of protein-protein
+interactions for mammalian TRP channels. Nucleic Acids Research, 39, D356-61.
+
+Snel, B., et al. (2000). STRING: a web-server to retrieve and display the repeatedly
+occurring neighbourhood of a gene. Nucleic Acids Research, 28, 3442-3444.
+
+Xenarios, I., et al. (2002). DIP, the Database of Interacting Proteins: a research
+tool for studying cellular networks of protein interactions. Nucleic Acids Research,
+30, 303-305.
+}
+\usage{regulatory_interactions}
+\value{Matrix}

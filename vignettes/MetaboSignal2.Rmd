@@ -1,0 +1,209 @@
+---
+bibliography: knitcitations.bib
+csl: template.csl
+css: mystyle.css
+output: 
+  BiocStyle::html_document
+vignette: |
+  %\VignetteEngine{knitr::rmarkdown} 
+  %\VignetteIndexEntry{MetaboSignal 2: merging KEGG with additional interaction resources} 
+  \usepackage[utf8]{inputenc}
+---
+
+
+```{r setup, echo=FALSE}
+knitr::opts_chunk$set(message=FALSE, fig.path='figures/')
+```
+
+<!-- Title block --> 
+<br>
+<p style="text-align:center;font-size:150%;color:Red"> MetaboSignal 2: merging KEGG with 
+additional interaction resources </p> <p style="text-align:center;font-size:100%;color:Gray"> 
+Andrea Rodriguez Martinez, Maryam Anwar, Rafael Ayala, Joram M. Posma, Ana L. Neves, 
+Marc-Emmanuel Dumas </p><p style="text-align:center;font-size:90%;color:Gray"> May 22, 2017 </p>
+<br>
+
+# Abstract
+<p style="font-size:110%"> MetaboSignal is an R package designed to investigate the
+genetic regulation of the metabolome, using KEGG as primary reference database. 
+The main goal of this vignette is to illustrate how KEGG interactions can be merged
+with two large literature-curated resources of human regulatory interactions: 
+OmniPath and TRRUST.<br><br> </p>
+
+# Introduction
+
+<p style="font-size:110%"> Metabolites are organized in biochemical pathways 
+regulated by signaling-transduction pathways, allowing the organism to adapt 
+to environmental changes and maintain homeostasis. We developed MetaboSignal 
+[@Rodriguez-Martinez2017] as a tool to explore the relationships between 
+genes (both enzymatic and signaling) and metabolites, using the Kyoto Encyclopedia 
+of Genes and Genomes (KEGG) [@kanehisa2000] as primary reference database. 
+In order to generate a more complete picture of the genetic regulation of the metabolome, 
+we have now updated and standarized the functionalities of MetaboSignal to facilitate its 
+integration with additional resources of molecular interactions. In this vignette we show how 
+KEGG interactions can be merged with human regulatory interactions from two large
+literature-curated resources: OmniPath [@turei2016] and TRRUST[@han2015]. </p>
+<br>
+
+# Hands-on
+
+## Load data
+<p style="font-size:110%"> We begin by loading the MetaboSignal package:</p>
+```{r, message = FALSE, tidy = TRUE}
+## Load MetaboSignal
+library(MetaboSignal)
+```
+<p style="font-size:110%"> We then load the "regulatory_interactions" and "kegg_pathways"
+datasets, containing the following information:<br><br>
+  - regulatory_interactions: matrix containing a set of regulatory interactions 
+  reported in OmniPath (directed protein-protein and signaling interactions) and TRRUST 
+  (transcription factor-target interactions). For each interaction, both literature 
+  reference(s) and primary database reference(s) are reported. Users are responsible 
+  for respecting the terms of the licences of these databases and for citing them when 
+  required. Notice that there are some inconsistencies between databases in terms 
+  of direction and sign of the interactions. This is likely to be due to curation errors, 
+  or also to the fact that some interactions might be bidirectional or have different 
+  sign depending on the tissue. Users can update/edit this matrix as required. <br><br>
+  - kegg_pathways: matrix containing the identifiers (IDs) of relevant metabolic (n = 85) 
+  and signaling (n = 126) human KEGG pathways. These IDs were retrieved using the function
+  "MS_getPathIds( )". </p>
+</p>
+
+```{r, tidy = TRUE}
+## Regulatory interactions
+data("regulatory_interactions")
+head(regulatory_interactions[, c(1,3,5)])
+
+## KEGG metabolic pathways
+data("kegg_pathways")
+head(kegg_pathways[, -2])
+
+## KEGG signaling pathways
+tail(kegg_pathways[, -2])
+```
+<br>
+
+## Build KEGG-based network
+<p style="font-size:110%"> We use the function "MS_getPathIds( )" to retrieve 
+the IDs of all human metabolic and signaling KEGG pathways. <p>
+```{r, tidy = TRUE, eval=FALSE}
+## Get IDs of metabolic and signaling human pathways
+hsa_paths <- MS_getPathIds(organism_code = "hsa")
+```
+<p style="font-size:110%"> This function generates a ".txt" file in the working
+directory named "hsa_pathways.txt". We recommend that users take some time to inspect 
+this file and carefully select the metabolic and signaling pathways that will be 
+used to build the network. In this example, we selected the pathways stored in 
+the "kegg_pathways" dataset.
+</p> 
+
+<p style="font-size:110%">Next, we use the function "MS_keggNetwork( )" to build a 
+MetaboSignal network, by merging the selected metabolic and signaling KEGG pathways 
+stored in the "kegg_pathways" dataset: </p>
+
+```{r, tidy = TRUE, tidy.opts=list(indent = 4, width.cutoff = 50)}
+## Create metabo_paths and signaling_paths vectors
+metabo_paths <- kegg_pathways[kegg_pathways[, "Path_type"] == "metabolic", "Path_id"]
+
+signaling_paths <- kegg_pathways[kegg_pathways[, "Path_type"] == "signaling", "Path_id"]
+```
+```{r tidy = TRUE, tidy.opts=list(indent = 4, width.cutoff = 50), results='asis', eval=FALSE}
+## Build KEGG network (might take a while)
+keggNet_example <- MS_keggNetwork(metabo_paths, signaling_paths, expand_genes = TRUE, 
+                                  convert_entrez = TRUE)
+```
+```{r, tidy = TRUE}
+## See network format
+head(keggNet_example)
+```
+
+<p style="font-size:110%"> The network is formatted as a three-column matrix where 
+each row represents an edge between two nodes (from source to target). The nodes 
+represent the following molecular entities: chemical compounds (KEGG IDs), reactions 
+(KEGG IDs), signaling genes (Entrez IDs) and metabolic genes (Entrez IDs). The 
+type of interaction is reported in the "interaction_type" column. Compound-gene
+(or gene-compound) interactions are designated as: "k_compound:reversible" or 
+"k_compound:irreversible", depending on the direction of the interaction. Other types
+of interactions correspond to gene-gene interactions. When KEGG reports various 
+types of interaction for the same interactant pair, the "interaction_type"
+is collapsed using "/". </p>
+
+<p style="font-size:110%"> Notice that when transforming KEGG signaling maps into 
+binary interactions, a number of indirect interactions are introduced, such as
+interactions involving all members of a proteic complex or proteins interacting 
+*via* an intermediary compound (*e.g.* AC and PKA, *via* cAMP). We recommend excluding 
+these indirect interactions, as they might alter further topological analyses. In 
+this example, we remove interactions classified as: "unknown", "indirect-compound", 
+"indirect-effect", "dissociation", "state-change", "binding", "association".</p>
+
+```{r, tidy = TRUE, tidy.opts=list(indent = 4, width.cutoff = 55)}
+## Get all types of interaction
+all_types <- unique(unlist(strsplit(keggNet_example[, "interaction_type"], "/")))
+all_types <- gsub("k_", "", all_types)
+
+## Select wanted interactions
+wanted_types <- setdiff(all_types, c("unknown", "indirect-compound", "indirect-effect", 
+                                     "dissociation", "state-change", "binding",
+                                     "association"))
+print(wanted_types) # interactions that will be retained
+
+## Filter keggNet_example to retain only wanted interactions
+wanted_types <- paste(wanted_types, collapse = "|")
+keggNet_clean <- keggNet_example[grep(wanted_types, keggNet_example[, 3]), ]
+```
+<br>
+
+## Build regulatory network
+<p style="font-size:110%"> We then use the function "MS2_ppiNetwork( )" to generate
+a regulatory network, by merging the signaling interactions from OmniPath and TRRUST,
+or by selecting the interactions of only one of these databases. Some examples are 
+shown below: </p>
+
+```{r, tidy = TRUE}
+## Build regulatory network of TRRUST interactions
+trrustNet_example <- MS2_ppiNetwork(datasets = "trrust")
+
+## Build regulatory network of OmniPath interactions
+omnipathNet_example <- MS2_ppiNetwork(datasets = "omnipath")
+
+## Build regulatory network by merging OmniPath and TRRUST interactions
+ppiNet_example <- MS2_ppiNetwork(datasets = "all")
+
+## See network format
+head(ppiNet_example)
+```
+<p style="font-size:110%"> Each of these networks is formatted as a three-column 
+matrix where each row represents an edge between two nodes (from source to target). 
+The third column indicates the interaction type and the source of the interaction
+(OmniPath: "o_", TRRUST: "t_"). Notice that common interactions between both databases 
+are collapsed, and the interaction type is reported as: "o_; t_;". </p>
+<br>
+
+## Merge KEGG network and regulatory network
+
+<p style="font-size:110%"> Finally, we use the function "MS2_mergeNetworks( )" to merge
+the KEGG-based network with the regulatory network. </p>
+
+```{r tidy = TRUE, tidy.opts=list(indent = 4, width.cutoff = 60), results='asis', eval=FALSE}
+## Merge networks
+mergedNet_example <- MS2_mergeNetworks(keggNet_clean, ppiNet_example)
+```
+```{r, message = FALSE, tidy = TRUE}
+## See network format
+head(mergedNet_example)
+```
+<p style="font-size:110%"> The network is formatted as a three-column matrix where 
+each row represents an edge between two nodes (from source to target). The third 
+column indicates the interaction type and the source of the interaction
+(KEGG: "k_", OmniPath: "o_", TRRUST: "t_"). Notice that common interactions 
+between both databases are collapsed, and the interaction type is reported 
+as: "k_;o_;t_;". This network can be further customized and subsequently used
+to explore gene-metabolite associations as described in the introductory vignette 
+of the package. </p>
+<br>
+
+
+# References
+
+
+

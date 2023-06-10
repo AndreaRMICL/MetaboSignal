@@ -1,6 +1,5 @@
-################ MS_FindKEGG ####################
-
-MS_FindKEGG = function(KEGG_database, match = NULL, organism_code = NULL) {
+################ MS_keggFinder ####################
+MS_keggFinder = function(KEGG_database, match = NULL, organism_code = NULL) {
     if (KEGG_database == "compound") {
         ### Find_Compound ####
         KEGG_value = MS_FindCompound(match = match)
@@ -20,10 +19,9 @@ MS_FindKEGG = function(KEGG_database, match = NULL, organism_code = NULL) {
     return(KEGG_value)
 }
 
-################ MS_GetKEGG_GeneID ################
-
-MS_GetKEGG_GeneID = function(genes, organism_code, organism_name = NULL,
-                             output = "vector", orthology = TRUE) {
+################ MS_convertGene ################
+MS_convertGene = function(genes, organism_code, organism_name = NULL,
+                          output = "vector", orthology = TRUE) {
 
     message("Transforming input gene IDs into gene nodes:")
 
@@ -89,7 +87,7 @@ MS_GetKEGG_GeneID = function(genes, organism_code, organism_name = NULL,
 
     ## Transform the KEGG IDs into orthology IDs
     if (orthology == TRUE) {
-        file_ko = paste("http://rest.kegg.jp/link/ko/", organism_code, sep = "")
+        file_ko = paste("https://rest.kegg.jp/link/ko/", organism_code, sep = "")
         response_ko = getURL(file_ko)
         if(nchar(response_ko) == 0) {
           stop ("Could not get orthology IDs. Check that organism_code is correct")
@@ -137,32 +135,20 @@ MS_GetKEGG_GeneID = function(genes, organism_code, organism_name = NULL,
     }
 }
 
-################ MS_FindMappedNodes ################
+################ MS_findMappedNodes ################
+MS_findMappedNodes = function(nodes, network_table) {
+    #check_matrix_v2(network_table)
+    all_nodes = unique(as.vector(network_table))
+    mapped_nodes = intersect(nodes, all_nodes)
+    unmapped_nodes = setdiff(nodes, all_nodes)
 
-MS_FindMappedNodes = function(nodes, network_table, organism_code = NULL,
-                              organism_name = NULL, orthology = TRUE) {
+    res_list = list(mapped_nodes = mapped_nodes, unmapped_nodes = unmapped_nodes)
 
-    nodes = unique(nodes)
-
-    if (grepl("cpd:", nodes[1])) {
-        message("Mapping metabolites onto the network", "\n")
-        response = MS_FindMappedMetabolites(metabolites = nodes, network_table)
-
-    } else {
-        message("Mapping genes onto the network", "\n")
-        if (length(organism_name) == 0 | length(organism_code) == 0) {
-            stop("An organism_name and an organism_code are required to map genes")
-        }
-        response = MS_FindMappedGenes(genes = nodes, organism_code = organism_code,
-                                      organism_name = organism_name,
-                                      network_table = network_table, orthology = orthology)
-    }
-    return(response)
+    return(res_list)
 }
 
-################ MS_ReplaceNode ################
-
-MS_ReplaceNode = function(node1, node2, network_table) {
+################ MS_replaceNode ################
+MS_replaceNode = function(node1, node2, network_table) {
     for (node in node1) {
         network_table[network_table == node] = node2
     }
@@ -170,14 +156,68 @@ MS_ReplaceNode = function(node1, node2, network_table) {
     return(network_table)
 }
 
-################ MS_RemoveNode ################
-
-MS_RemoveNode = function(nodes, network_table) {
+################ MS_removeNode ################
+MS_removeNode = function(nodes, network_table) {
     for (node in nodes) {
         network_table[network_table == node] = NA
     }
     network_table = na.omit(network_table)
     network_table = unique(network_table)
     return(network_table)
+}
+
+################ MS_removeDrugs ################
+MS_removeDrugs = function(network_table) {
+    check_matrix_v2(network_table, n = 2)
+    ind = unique(c(grep("dr:", network_table[, 1]), grep("dr:", network_table[, 2])))
+
+    if (length(ind) > 0) {
+          network_table = network_table[-ind, ]
+          network_features(network_table[, 1:2])
+          return(network_table)
+    }
+    message("Drug nodes not found")
+    return(network_table)
+}
+
+################ MS_getPathIds ################
+MS_getPathIds = function(organism_code) {
+    path_ids = keggLink("pathway", organism_code)
+    path_ids = unique(gsub("path:", "", path_ids))
+    metabo_pathways = vector(mode = "list", length = length(path_ids))
+    signaling_pathways = vector(mode = "list", length = length(path_ids))
+
+    for(path in path_ids) {
+        #print(path)
+        res = keggGet(path)
+        class = res[[1]]$CLASS
+
+        if (!is.null(class)) {
+            if (grepl("Metabolism", class) & class != "Metabolism; Overview") {
+                metabo_pathways[[path]] = c(path, res[[1]]$NAME, class, "metabolic")
+            }
+            if (grepl("Metabolism", class) == FALSE &
+                grepl("Genetic Information Processing;", class) == FALSE) {
+                signaling_pathways[[path]] = c(path, res[[1]]$NAME, class, "signaling")
+            }
+        }
+    }
+
+    metabo_pathways = do.call(rbind, metabo_pathways)
+    signaling_pathways = do.call(rbind, signaling_pathways)
+
+    all_pathways = rbind(metabo_pathways, signaling_pathways)
+
+    colnames(all_pathways) = c("Path_id", "Path_description", "Path_category", "Path_type")
+    rownames(all_pathways) = NULL
+
+    file_name = paste(organism_code, "pathways.txt", sep = "_")
+
+    all_pathwaysDF = as.data.frame(all_pathways)
+
+    write.table(all_pathwaysDF, file_name, row.names = FALSE,
+                sep = "\t", quote = FALSE, col.names = TRUE)
+
+    return(all_pathways)
 }
 
